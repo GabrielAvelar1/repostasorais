@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Correção de Provas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sistema de Correção de Provas</h1>
+        </header>
+        
+        <main>
+            <div class="teacher-panel">
+                <h3>🔑 Painel do Professor (Configuração)</h3>
+                
+                <label for="pergunta-input">Insira aqui a Pergunta da Prova:</label>
+                <textarea id="pergunta-input" rows="2" style="margin-bottom: 12px; width: 100%;">Descreva o protocolo clínico e farmacológico recomendado para um paciente com abscesso periapical agudo.</textarea>
+                
+                <label for="resposta-espelho">Insira aqui a Resposta Espelho esperada:</label>
+                <textarea id="resposta-espelho" rows="4">O protocolo para abscesso periapical agudo em paciente sem alergias envolve a drenagem do abscesso (via canal ou incisão), associada à prescrição de Amoxicilina 500mg, de 8 em 8 horas, por 7 dias. Em caso de dor, prescrever Ibuprofeno 600mg de 12 em 12 horas ou Dipirona 500mg de 6 em 6 horas.</textarea>
+            </div>
+
+            <div class="question-card">
+                <h3>Pergunta Atual:</h3>
+                <p id="pergunta-texto">Descreva o protocolo clínico e farmacológico recomendado para um paciente com abscesso periapical agudo.</p>
+            </div>
+
+            <div class="controls">
+                <button id="btn-gravar" class="btn-primary">🎤 Gravar Resposta</button>
+                <p id="status-gravacao">Clique no botão para começar a gravar.</p>
+            </div>
+
+            <div class="response-area">
+                <label for="texto-resposta">Sua resposta transcrita (pode editar se necessário):</label>
+                <textarea id="texto-resposta" rows="6" placeholder="O áudio gravado aparecerá transcrito aqui..."></textarea>
+            </div>
+
+            <button id="btn-enviar" class="btn-success" disabled>Enviar para Correção com IA</button>
+
+            <div id="resultado-container" class="result-card hidden">
+                <h2>📊 Resultado da Avaliação</h2>
+                <div class="score-badge">
+                    <span>Nota:</span>
+                    <strong id="resultado-nota">0.0</strong>
+                </div>
+                <div class="result-section">
+                    <h4>✅ O que acertou:</h4>
+                    <p id="resultado-acertos"></p>
+                </div>
+                <div class="result-section">
+                    <h4>⚠️ O que faltou ou errou:</h4>
+                    <p id="resultado-erros"></p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

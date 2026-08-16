@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Sala - Aluno</title>
+    <link rel="stylesheet" href="painel.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
+        .sidebar nav ul li a { cursor: pointer; }
+        
+        .aviso-card {
+            background: white; padding: 1.5rem; border-radius: 8px;
+            border-left: 4px solid #f59e0b; margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .aviso-data { font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Barra Lateral do Aluno -->
+        <aside class="sidebar">
+            <h2>Sistema de Correção de Provas</h2>
+            <nav>
+                <ul id="menu-tabs">
+                    <li><a href="painel_aluno.html">⬅ Voltar ao Painel</a></li>
+                    <li style="margin-top: 2rem; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; font-weight: bold; padding-left: 10px;">Área da Disciplina</li>
+                    <li class="active"><a data-target="tab-provas">📝 Avaliações</a></li>
+                    <li><a data-target="tab-avisos">📢 Mural de Avisos</a></li>
+                    <li><a data-target="tab-notas">📊 Minhas Notas</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <header class="section-header" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                <h1 id="nome-turma-titulo" style="margin-bottom: 0;">Carregando sala...</h1>
+                <p style="font-size: 1rem; color: #64748b;">Bem-vindo à sala da disciplina.</p>
+            </header>
+
+            <!-- TAB: PROVAS -->
+            <div id="tab-provas" class="tab-content active">
+                <div class="section-header">
+                    <h2>Avaliações Disponíveis</h2>
+                </div>
+                <div class="grid-turmas" id="lista-provas-aluno">
+                    <p class="loading-text">Buscando avaliações liberadas pelo professor...</p>
+                </div>
+            </div>
+
+            <!-- TAB: AVISOS -->
+            <div id="tab-avisos" class="tab-content">
+                <div class="section-header">
+                    <h2>Mural de Avisos</h2>
+                </div>
+                <div id="lista-avisos">
+                    <p class="loading-text">Buscando avisos do professor...</p>
+                </div>
+            </div>
+
+            <!-- TAB: NOTAS -->
+            <div id="tab-notas" class="tab-content">
+                <div class="section-header">
+                    <h2>Meu Boletim</h2>
+                </div>
+                <div id="lista-notas-aluno" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <p class="loading-text">Buscando suas notas...</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Modal Detalhes da Correção -->
+    <div id="modal-detalhes" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: white; width: 95%; max-width: 800px; height: 85vh; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+            <header style="background: #2563eb; color: white; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="font-size: 1.25rem;" id="modal-detalhes-titulo">Detalhes da Correção</h2>
+                <button onclick="document.getElementById('modal-detalhes').classList.add('hidden')" style="background: transparent; color: #dbeafe; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </header>
+            <div id="conteudo-detalhes" style="flex: 1; padding: 2rem; overflow-y: auto; background: #f8fafc;">
+            </div>
+        </div>
+    </div>
+
+    <script src="turma_aluno.js"></script>
+</body>
+</html>

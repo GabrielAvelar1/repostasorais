@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhes da Turma - Professor</title>
+    <link rel="stylesheet" href="painel.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
+        .sidebar nav ul li a { cursor: pointer; }
+        
+        /* Avisos Styles */
+        .aviso-card {
+            background: white; padding: 1.5rem; border-radius: 8px;
+            border-left: 4px solid #f59e0b; margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .aviso-data { font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem; }
+        
+        /* Gradebook Styles */
+        .gradebook-table {
+            width: 100%; border-collapse: collapse; background: white;
+            border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .gradebook-table th, .gradebook-table td {
+            padding: 1rem; text-align: left; border-bottom: 1px solid #e2e8f0;
+        }
+        .gradebook-table th { background: #f8fafc; font-weight: 600; color: #334155; }
+        .gradebook-table tr:hover { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h2>Sistema de Correção de Provas</h2>
+            <nav>
+                <ul id="menu-tabs">
+                    <li><a href="painel_professor.html">⬅ Voltar ao Painel</a></li>
+                    <li style="margin-top: 2rem; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; font-weight: bold; padding-left: 10px;">Gestão da Turma</li>
+                    <li class="active"><a data-target="tab-provas">📄 Provas Orais</a></li>
+                    <li><a data-target="tab-avisos">📢 Mural de Avisos</a></li>
+                    <li><a data-target="tab-boletim">📊 Boletim & Alunos</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="section-header" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                <h1 id="nome-turma-titulo" style="margin-bottom: 0;">Carregando Turma...</h1>
+                <p style="font-size: 1rem; color: #64748b;">
+                    Código de Acesso para alunos: <strong id="codigo-turma-destaque" style="color: #2563eb; background: #dbeafe; padding: 4px 8px; border-radius: 4px; letter-spacing: 1px;">---</strong>
+                </p>
+            </header>
+
+            <!-- TAB: PROVAS -->
+            <div id="tab-provas" class="tab-content active">
+                <div class="section-header">
+                    <h2>Gerenciar Provas</h2>
+                    <button id="btn-nova-prova" class="btn-primary">+ Criar Nova Prova</button>
+                </div>
+
+                <!-- Formulário de Nova Prova -->
+                <div id="form-prova-container" class="hidden form-card">
+                    <h3 style="margin-bottom: 1.5rem; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">Configurações da Prova</h3>
+                    
+                    <div class="input-group">
+                        <label>Nome da Prova (Ex: AV1 - Periodontia)</label>
+                        <input type="text" id="input-nome-prova" placeholder="Digite o nome da prova">
+                    </div>
+                    <div class="input-group">
+                        <label>Valor Total da Prova (Pontos)</label>
+                        <input type="number" id="input-valor-total" value="10" min="0" step="0.5">
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div class="input-group" style="flex: 1;">
+                            <label>Início Automático (Opcional)</label>
+                            <input type="datetime-local" id="input-data-inicio">
+                        </div>
+                        <div class="input-group" style="flex: 1;">
+                            <label>Encerramento (Opcional)</label>
+                            <input type="datetime-local" id="input-data-fim">
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">Questões</h3>
+                    <div id="container-perguntas"></div>
+
+                    <button id="btn-adicionar-pergunta" class="btn-secondary" style="margin-bottom: 1.5rem; border: 1px dashed #cbd5e1; width: 100%;">+ Adicionar Questão</button>
+
+                    <div class="form-actions" style="border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
+                        <button id="btn-salvar-prova" class="btn-success" style="flex: 2;">💾 Salvar Prova</button>
+                        <button id="btn-cancelar-prova" class="btn-secondary" style="flex: 1;">Cancelar</button>
+                    </div>
+                </div>
+
+                <div id="lista-provas" class="grid-turmas">
+                    <p class="loading-text">Carregando provas...</p>
+                </div>
+            </div>
+
+            <!-- TAB: AVISOS -->
+            <div id="tab-avisos" class="tab-content">
+                <div class="section-header">
+                    <h2>Mural de Avisos</h2>
+                </div>
+                
+                <div class="form-card" style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">Postar Novo Aviso</h3>
+                    <div class="input-group">
+                        <textarea id="input-novo-aviso" rows="3" placeholder="Digite uma mensagem para a turma..."></textarea>
+                    </div>
+                    <button id="btn-postar-aviso" class="btn-primary">Postar no Mural</button>
+                </div>
+
+                <div id="lista-avisos">
+                    <p class="loading-text">Buscando avisos...</p>
+                </div>
+            </div>
+
+            <!-- TAB: BOLETIM & ALUNOS -->
+            <div id="tab-boletim" class="tab-content">
+                <div class="section-header">
+                    <h2>Boletim de Notas</h2>
+                    <button id="btn-exportar-notas" class="btn-secondary">Exportar CSV</button>
+                </div>
+                
+                <div style="overflow-x: auto;">
+                    <table class="gradebook-table">
+                        <thead>
+                            <tr id="gradebook-header">
+                                <th>Aluno</th>
+                                <th>Status</th>
+                                <!-- Colunas de provas entram dinamicamente -->
+                                <th>Média Final</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gradebook-body">
+                            <tr><td colspan="4" class="loading-text" style="text-align: center;">Carregando boletim...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Modais (Mantidos e estilizados via CSS) -->
+    <div id="modal-respostas" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: white; width: 90%; max-width: 800px; height: 80vh; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+            <header style="background: #1e293b; color: white; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="font-size: 1.25rem;">🔴 Monitoramento ao Vivo</h2>
+                <button id="btn-fechar-modal" style="background: transparent; color: #94a3b8; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </header>
+            <div id="lista-respostas-vivo" style="flex: 1; padding: 2rem; overflow-y: auto; background: #f8fafc;">
+                <p class="loading-text" style="text-align: center;">Aguardando submissões...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-resultados" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: white; width: 95%; max-width: 900px; height: 85vh; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+            <header style="background: #059669; color: white; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="font-size: 1.25rem;">📋 Correção de Prova</h2>
+                <button onclick="document.getElementById('modal-resultados').classList.add('hidden')" style="background: transparent; color: #d1fae5; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </header>
+            <div id="lista-resultados-alunos" style="flex: 1; padding: 2rem; overflow-y: auto; background: #f8fafc;">
+            </div>
+        </div>
+    </div>
+
+    <script src="turma_detalhes.js"></script>
+</body>
+</html>

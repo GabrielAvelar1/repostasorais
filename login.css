@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #f6f8fd 0%, #f1f5f9 100%);
+    color: #1e293b;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+}
+
+.login-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    width: 100%;
+    max-width: 480px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0,0,0,0.05);
+    padding: 2.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+header h1 {
+    font-size: 1.75rem;
+    color: #0f172a;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+header p {
+    font-size: 0.95rem;
+    color: #64748b;
+}
+
+.form-box h2 {
+    font-size: 1.25rem;
+    color: #334155;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+.input-group {
+    margin-bottom: 1.25rem;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.875rem;
+    color: #475569;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.input-group input[type="text"],
+.input-group input[type="email"],
+.input-group input[type="password"] {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #1e293b;
+    outline: none;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.input-group input:focus {
+    border-color: #3b82f6;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.role-selection {
+    background-color: #f8fafc;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+}
+
+.role-selection p {
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.role-selection label {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 1.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.role-selection input[type="radio"] {
+    margin-right: 0.5rem;
+    accent-color: #3b82f6;
+    width: 1rem;
+    height: 1rem;
+}
+
+button {
+    width: 100%;
+    padding: 0.875rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+.btn-primary { 
+    background: linear-gradient(to right, #2563eb, #3b82f6);
+}
+.btn-primary:hover { 
+    background: linear-gradient(to right, #1d4ed8, #2563eb);
+    box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.2), 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+}
+
+.btn-success { 
+    background: linear-gradient(to right, #10b981, #34d399);
+}
+.btn-success:hover { 
+    background: linear-gradient(to right, #059669, #10b981);
+    box-shadow: 0 6px 8px -1px rgba(16, 185, 129, 0.2), 0 4px 6px -1px rgba(16, 185, 129, 0.1);
+}
+
+.switch-form {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+.switch-form a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.switch-form a:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.hidden {
+    display: none !important;
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Professor</title>
+    <link rel="stylesheet" href="painel.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Barra Lateral -->
+        <aside class="sidebar">
+            <h2>Sistema de Correção de Provas</h2>
+            <nav>
+                <ul>
+                    <li class="active"><a href="#" id="menu-turmas">Minhas Turmas</a></li>
+                    <li><a href="#" id="menu-provas">Provas (Em breve)</a></li>
+                </ul>
+            </nav>
+            <button id="btn-sair" class="btn-danger">Sair do Sistema</button>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <header>
+                <h1 id="boas-vindas">Carregando...</h1>
+            </header>
+
+            <section id="secao-turmas" class="content-section">
+                <div class="section-header">
+                    <h2>Gerenciar Turmas</h2>
+                    <button id="btn-nova-turma" class="btn-primary">+ Nova Turma</button>
+                </div>
+
+                <!-- Formulário para criar turma (escondido por padrão) -->
+                <div id="form-turma-container" class="hidden form-card">
+                    <h3>Criar Nova Turma</h3>
+                    <div class="input-group">
+                        <label for="nome-turma">Nome da Turma ou Disciplina</label>
+                        <input type="text" id="nome-turma" placeholder="Ex: Farmacologia - 4º Semestre">
+                    </div>
+                    <div class="form-actions">
+                        <button id="btn-salvar-turma" class="btn-success">Salvar Turma</button>
+                        <button id="btn-cancelar-turma" class="btn-secondary">Cancelar</button>
+                    </div>
+                </div>
+
+                <!-- Lista de Turmas -->
+                <div class="grid-turmas" id="lista-turmas">
+                    <p class="loading-text">Carregando suas turmas...</p>
+                    <!-- As turmas aparecerão aqui via JavaScript -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="painel_professor.js"></script>
+</body>
+</html>

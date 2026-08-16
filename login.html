@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Correção de Provas</title>
+    <link rel="stylesheet" href="login.css">
+    <!-- Importando a biblioteca do Supabase direto pelo navegador -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="login-container">
+        <header>
+            <h1>Sistema de Correção de Provas</h1>
+            <p>Faça login ou crie sua conta para acessar o sistema.</p>
+        </header>
+
+        <!-- Formulário de LOGIN -->
+        <div id="form-login" class="form-box">
+            <h2>Entrar</h2>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="login-email">E-mail</label>
+                    <input type="email" id="login-email" required>
+                </div>
+                <div class="input-group">
+                    <label for="login-senha">Senha</label>
+                    <input type="password" id="login-senha" required>
+                </div>
+                <button type="submit" class="btn-primary" id="btn-entrar">Entrar no Sistema</button>
+            </form>
+            <p class="switch-form">Não tem uma conta? <a href="#" onclick="alternarFormulario()">Cadastre-se</a></p>
+        </div>
+
+        <!-- Formulário de CADASTRO -->
+        <div id="form-cadastro" class="form-box hidden">
+            <h2>Criar Conta</h2>
+            <form id="cadastroForm">
+                <div class="input-group">
+                    <label for="cad-nome">Nome Completo</label>
+                    <input type="text" id="cad-nome" required>
+                </div>
+                <div class="input-group">
+                    <label for="cad-email">E-mail</label>
+                    <input type="email" id="cad-email" required>
+                </div>
+                <div class="input-group">
+                    <label for="cad-senha">Senha (Mínimo 6 caracteres)</label>
+                    <input type="password" id="cad-senha" required minlength="6">
+                </div>
+                
+                <div class="input-group role-selection">
+                    <p>Eu sou um:</p>
+                    <label>
+                        <input type="radio" name="tipoUsuario" value="aluno" checked> Aluno
+                    </label>
+                    <label>
+                        <input type="radio" name="tipoUsuario" value="professor"> Professor
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-success" id="btn-cadastrar">Realizar Cadastro</button>
+            </form>
+            <p class="switch-form">Já tem uma conta? <a href="#" onclick="alternarFormulario()">Faça Login</a></p>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Aluno</title>
+    <link rel="stylesheet" href="painel.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Barra Lateral -->
+        <aside class="sidebar" style="background-color: #2980b9;">
+            <h2>Área do Aluno</h2>
+            <nav>
+                <ul>
+                    <li class="active"><a href="#">Minhas Turmas</a></li>
+                </ul>
+            </nav>
+            <button id="btn-sair" class="btn-danger">Sair do Sistema</button>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <header>
+                <h1 id="boas-vindas">Carregando...</h1>
+            </header>
+
+            <section class="content-section">
+                <div class="section-header" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: flex-end;">
+                    <div class="input-group" style="flex: 1; margin: 0;">
+                        <label>Entrar em uma nova Turma</label>
+                        <input type="text" id="input-codigo-turma" placeholder="Digite o código fornecido pelo professor..." style="text-transform: uppercase;">
+                    </div>
+                    <button id="btn-entrar-turma" class="btn-success" style="padding: 10px 20px;">Entrar na Turma</button>
+                </div>
+
+                <h2 style="margin: 30px 0 15px 0; color: #2c3e50;">Turmas Matriculadas</h2>
+                
+                <div class="grid-turmas" id="lista-turmas-aluno">
+                    <p class="loading-text">Buscando suas turmas...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="painel_aluno.js"></script>
+</body>
+</html>
