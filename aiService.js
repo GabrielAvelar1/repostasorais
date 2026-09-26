@@ -38,11 +38,36 @@ async function processQueue() {
  * Get configured Gemini API keys (Free first, then Paid)
  */
 function getGeminiApiKeys() {
-  const freeKey = process.env.FREE_GEMINI_API_KEY || '';
-  const paidKey = process.env.PAID_GEMINI_API_KEY || '';
   const keys = [];
-  if (freeKey) keys.push({ type: 'Gratuito', key: freeKey });
-  if (paidKey) keys.push({ type: 'Pago', key: paidKey });
+
+  // Free keys (Key 1, Key 2, or comma-separated list)
+  const free1 = process.env.FREE_GEMINI_API_KEY || '';
+  const free2 = process.env.FREE_GEMINI_API_KEY_2 || '';
+  const freeExtra = process.env.FREE_GEMINI_API_KEYS ? process.env.FREE_GEMINI_API_KEYS.split(',') : [];
+
+  const freeList = [free1, free2, ...freeExtra]
+    .map(k => k.trim())
+    .filter(Boolean);
+
+  const uniqueFree = [...new Set(freeList)];
+  uniqueFree.forEach((k, idx) => {
+    keys.push({ type: `Gratuito #${idx + 1}`, key: k });
+  });
+
+  // Paid keys
+  const paid1 = process.env.PAID_GEMINI_API_KEY || '';
+  const paid2 = process.env.PAID_GEMINI_API_KEY_2 || '';
+  const paidExtra = process.env.PAID_GEMINI_API_KEYS ? process.env.PAID_GEMINI_API_KEYS.split(',') : [];
+
+  const paidList = [paid1, paid2, ...paidExtra]
+    .map(k => k.trim())
+    .filter(Boolean);
+
+  const uniquePaid = [...new Set(paidList)];
+  uniquePaid.forEach((k, idx) => {
+    keys.push({ type: `Pago #${idx + 1}`, key: k });
+  });
+
   return keys;
 }
 
