@@ -352,7 +352,7 @@ async function getStudentsList() {
     .order('full_name', { ascending: true });
 
   return (students || []).map(s => {
-    const exam = s.student_exams?.[0] || null;
+    const exam = Array.isArray(s.student_exams) ? s.student_exams[0] : (s.student_exams || null);
     return {
       user_id: s.id,
       registration: s.registration,

@@ -153,7 +153,15 @@ function setupEventListeners() {
   });
 
   // Waiting Room manual check
-  btnCheckExamNow.addEventListener('click', () => loadStudentFlow());
+  btnCheckExamNow.addEventListener('click', async () => {
+    btnCheckExamNow.disabled = true;
+    btnCheckExamNow.textContent = 'Verificando...';
+    await loadStudentFlow();
+    setTimeout(() => {
+      btnCheckExamNow.disabled = false;
+      btnCheckExamNow.textContent = 'Verificar agora';
+    }, 600);
+  });
 
   // Speech Recognition toggle
   btnToggleRecord.addEventListener('click', () => {
@@ -244,7 +252,7 @@ function setupEventListeners() {
   });
 
   // Check grades now
-  btnCheckGradesNow.addEventListener('click', () => checkGradesRelease());
+  btnCheckGradesNow.addEventListener('click', () => checkGradesRelease(true));
 }
 
 // -------------------------------------------------------------
@@ -307,7 +315,12 @@ function startExamStatusPolling() {
 }
 
 // Check if grades have been released
-async function checkGradesRelease() {
+async function checkGradesRelease(manualClick = false) {
+  if (manualClick && btnCheckGradesNow) {
+    btnCheckGradesNow.disabled = true;
+    btnCheckGradesNow.innerHTML = '<span>⏳</span> Verificando no sistema...';
+  }
+
   try {
     const res = await fetch(`/api/exam/my-result?userId=${currentUser.id}`, {
       headers: { 'x-user-id': currentUser.id }
@@ -317,13 +330,29 @@ async function checkGradesRelease() {
     if (!data.gradesReleased) {
       showView(viewSubmitted);
       startGradesPolling();
+      if (manualClick) {
+        showToast('⏳ A Professora Patricia ainda não liberou as notas. O sistema atualiza automaticamente!');
+      }
     } else {
       clearInterval(statusPollingInterval);
       renderResults(data);
       showView(viewResults);
+      if (manualClick) {
+        showToast('🎉 As notas foram liberadas pela Professora!');
+      }
     }
   } catch (err) {
     console.error('Error checking grades:', err);
+    if (manualClick) {
+      showToast('❌ Erro ao consultar notas. Verifique sua conexão e tente novamente.');
+    }
+  } finally {
+    if (manualClick && btnCheckGradesNow) {
+      setTimeout(() => {
+        btnCheckGradesNow.disabled = false;
+        btnCheckGradesNow.innerHTML = '🔄 Verificar se as Notas Foram Liberadas';
+      }, 600);
+    }
   }
 }
 
