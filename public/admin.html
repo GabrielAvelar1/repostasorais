@@ -71,12 +71,15 @@
         </button>
       </div>
 
-      <div class="admin-btn-group" style="align-items: center;">
+      <div class="admin-btn-group" style="align-items: center; flex-wrap: wrap;">
         <span class="badge badge-success" style="font-size: 0.85rem; padding: 0.5rem 0.8rem;">
           🤖 IA Pronta (Gemini Flash)
         </span>
         <button id="btn-open-export-modal" class="btn btn-primary" type="button">
           📊 Baixar Planilha (Excel / Google Planilhas)
+        </button>
+        <button id="btn-reset-system" class="btn btn-outline" style="color: #dc2626; border-color: #dc2626; font-weight: 600;" type="button" title="Zerar todos os alunos e notas para aplicar outra prova do zero">
+          ⚠️ Resetar Sistema
         </button>
       </div>
     </div>
@@ -154,11 +157,14 @@
             --
           </span>
         </div>
+        <button id="btn-save-all-grades" class="btn btn-primary" type="button">
+          💾 Salvar Todas as Notas e Correções
+        </button>
         <button id="btn-regrade-ai" class="btn btn-outline" type="button">
           🤖 Reavaliar com IA
         </button>
-        <button class="btn btn-primary" type="button" onclick="closeReviewModal()">
-          Concluir Revisão
+        <button class="btn btn-outline" type="button" onclick="closeReviewModal()">
+          Fechar
         </button>
       </div>
     </div>

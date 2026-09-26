@@ -451,6 +451,35 @@ async function getDetailedExamExportData() {
   return result;
 }
 
+/**
+ * Reset entire system: clears all students, exams, answers, and releases, preserving teacher Patricia & questions
+ */
+async function resetEntireSystem() {
+  // 1. Delete all exam answers
+  await supabase.from('exam_answers').delete().neq('id', 0);
+  // 2. Delete all exams
+  await supabase.from('student_exams').delete().neq('id', 0);
+  // 3. Delete all students (keep teacher)
+  await supabase.from('users').delete().eq('role', 'student');
+  // 4. Ensure teacher Patricia exists
+  await findOrCreateUser('12345', 'Patricia', 'teacher');
+  // 5. Reset grades_released to '0'
+  await setSetting('grades_released', '0');
+  return true;
+}
+
+/**
+ * Save all teacher grades and corrections in batch
+ */
+async function updateAllTeacherGrades(examId, gradesList) {
+  for (const item of gradesList) {
+    if (item && item.answerId) {
+      await updateTeacherGrade(item.answerId, item.score, item.feedback);
+    }
+  }
+  return true;
+}
+
 module.exports = {
   supabase,
   getSetting,
@@ -466,9 +495,11 @@ module.exports = {
   submitExam,
   updateGradingResults,
   updateTeacherGrade,
+  updateAllTeacherGrades,
   getStudentsList,
   getDashboardStats,
   resetStudentExam,
   deleteStudent,
-  getDetailedExamExportData
+  getDetailedExamExportData,
+  resetEntireSystem
 };

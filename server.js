@@ -382,6 +382,35 @@ app.delete('/api/admin/student/:userId', requireTeacher, async (req, res) => {
   }
 });
 
+// Reset entire system (clears all students, exams, and grades for a fresh exam session)
+app.post('/api/admin/reset-system', requireTeacher, async (req, res) => {
+  try {
+    await dbService.resetEntireSystem();
+    res.json({
+      success: true,
+      message: 'Sistema resetado com sucesso! Todos os alunos, provas e notas foram limpos para a nova avaliação.'
+    });
+  } catch (err) {
+    console.error('Error resetting system:', err);
+    res.status(500).json({ error: 'Erro ao resetar o sistema.' });
+  }
+});
+
+// Save all grades and feedbacks in batch from review modal
+app.post('/api/admin/save-all-grades', requireTeacher, async (req, res) => {
+  try {
+    const { examId, grades } = req.body;
+    if (!examId || !Array.isArray(grades)) {
+      return res.status(400).json({ error: 'Dados inválidos.' });
+    }
+    await dbService.updateAllTeacherGrades(examId, grades);
+    res.json({ success: true, message: 'Todas as notas e correções foram salvas com sucesso!' });
+  } catch (err) {
+    console.error('Error saving all grades:', err);
+    res.status(500).json({ error: 'Erro ao salvar notas da prova.' });
+  }
+});
+
 // Export Excel for Grades (Summary or Detailed with Questions and AI Corrections)
 app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
   try {

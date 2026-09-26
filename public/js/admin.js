@@ -5,6 +5,7 @@
 let currentUser = null;
 let studentsList = [];
 let activeReviewExamId = null;
+let currentModalAnswers = [];
 
 // DOM Elements
 const statTotalStudents = document.getElementById('stat-total-students');
@@ -181,6 +182,96 @@ function setupAdminEvents() {
       if (modal) modal.style.display = 'flex';
     });
   }
+
+  // Reset Entire System Trigger
+  const btnResetSystem = document.getElementById('btn-reset-system');
+  if (btnResetSystem) {
+    btnResetSystem.addEventListener('click', async () => {
+      const msg = '⚠️ ATENÇÃO PROFESSORA PATRICIA:\n\n' +
+        'Deseja realmente RESETAR TODO O SISTEMA?\n\n' +
+        'Esta ação irá:\n' +
+        '• Apagar todos os alunos inscritos\n' +
+        '• Apagar todas as provas enviadas e rascunhos\n' +
+        '• Apagar todas as notas e correções da IA\n' +
+        '• Zerar as estatísticas e a média da turma\n\n' +
+        'O sistema ficará 100% limpo para aplicar uma nova prova do zero.\n\n' +
+        'Deseja prosseguir?';
+
+      if (!confirm(msg)) return;
+
+      const confirmText = prompt('Para confirmar a limpeza total do sistema, digite RESETAR:');
+      if (confirmText !== 'RESETAR') {
+        showToast('Reset cancelado.');
+        return;
+      }
+
+      try {
+        btnResetSystem.disabled = true;
+        btnResetSystem.textContent = 'Resetando sistema...';
+
+        const res = await fetch('/api/admin/reset-system', {
+          method: 'POST',
+          headers: getAdminHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        showToast('✨ Sistema resetado com sucesso! Tudo limpo para a nova prova.');
+        loadDashboardData();
+        loadStudents();
+      } catch (err) {
+        alert(err.message || 'Erro ao resetar o sistema.');
+      } finally {
+        btnResetSystem.disabled = false;
+        btnResetSystem.textContent = '⚠️ Resetar Sistema';
+      }
+    });
+  }
+
+  // Save All Grades & Feedbacks Trigger
+  const btnSaveAllGrades = document.getElementById('btn-save-all-grades');
+  if (btnSaveAllGrades) {
+    btnSaveAllGrades.addEventListener('click', async () => {
+      if (!activeReviewExamId || !currentModalAnswers || currentModalAnswers.length === 0) return;
+
+      btnSaveAllGrades.disabled = true;
+      btnSaveAllGrades.textContent = 'Salvando todas...';
+
+      try {
+        const gradesPayload = currentModalAnswers.map(a => {
+          const scoreEl = document.getElementById(`score-input-${a.answer_id}`);
+          const feedbackEl = document.getElementById(`feedback-input-${a.answer_id}`);
+          const scoreVal = scoreEl ? parseFloat(scoreEl.value) : 0;
+          return {
+            answerId: a.answer_id,
+            score: isNaN(scoreVal) ? 0 : Math.min(10, Math.max(0, scoreVal)),
+            feedback: feedbackEl ? feedbackEl.value.trim() : ''
+          };
+        });
+
+        const res = await fetch('/api/admin/save-all-grades', {
+          method: 'POST',
+          headers: getAdminHeaders(),
+          body: JSON.stringify({
+            examId: activeReviewExamId,
+            grades: gradesPayload
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        showToast('🎉 Todas as 5 notas e correções foram salvas com sucesso!');
+        openReviewModal(activeReviewExamId);
+        loadDashboardData();
+        loadStudents();
+      } catch (err) {
+        alert(err.message || 'Erro ao salvar notas.');
+      } finally {
+        btnSaveAllGrades.disabled = false;
+        btnSaveAllGrades.textContent = '💾 Salvar Todas as Notas e Correções';
+      }
+    });
+  }
 }
 
 function closeExportModal() {
@@ -283,7 +374,7 @@ function renderStudentsTable() {
 
     const actionBtns = `
       <div style="display: inline-flex; gap: 0.35rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
-        ${s.exam_id ? `<button class="btn btn-outline btn-sm" onclick="openReviewModal(${s.exam_id})" title="Revisar respostas e notas">👁️ Revisar</button>` : ''}
+        ${s.exam_id ? `<button class="btn btn-primary btn-sm" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">👁️ Ver Respostas & Correção IA</button>` : '<span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.5rem;">(Aguardando aluno)</span>'}
         ${s.exam_id ? `<button class="btn btn-outline btn-sm" style="color: #b45309; border-color: #fde68a;" onclick="handleResetExam(${s.user_id}, '${escapedName}')" title="Zerar a prova deste aluno para ele refazer">🔄 Resetar Prova</button>` : ''}
         <button class="btn btn-outline btn-sm" style="color: #b91c1c; border-color: #fecaca;" onclick="handleDeleteStudent(${s.user_id}, '${escapedName}')" title="Remover aluno da turma">🗑️ Excluir</button>
       </div>
@@ -360,6 +451,7 @@ async function openReviewModal(examId) {
     if (!res.ok) throw new Error(data.error);
 
     const { exam, answers } = data;
+    currentModalAnswers = answers || [];
 
     modalReviewStudentName.textContent = `Aluno: ${exam.full_name}`;
     modalReviewStudentMeta.textContent = `Matrícula: ${exam.registration} | Status: ${exam.status.toUpperCase()} | Enviado em: ${exam.submitted_at ? new Date(exam.submitted_at).toLocaleString('pt-BR') : '-'}`;
@@ -378,39 +470,50 @@ async function openReviewModal(examId) {
             </div>
             <div style="text-align: right;">
               <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Nota Sugerida IA:</span>
-              <strong>${a.ai_score !== null ? Number(a.ai_score).toFixed(1) : '-'} / 10</strong>
+              <strong style="color: var(--primary); font-size: 1.1rem;">${a.ai_score !== null ? Number(a.ai_score).toFixed(1) : '-'} / 10</strong>
             </div>
           </div>
 
           <!-- Student Answer -->
           <div class="review-block review-student">
-            <strong>Resposta Transcrita do Aluno:</strong>
-            <p style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem;">${escapeHtml(a.student_answer || '[Não respondeu]')}</p>
+            <strong>🗣️ Resposta Transcrita do Aluno (Áudio):</strong>
+            <p style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(a.student_answer || '[Nenhuma resposta gravada]')}</p>
           </div>
 
           <!-- Expected Answer -->
           <div class="review-block review-expected">
-            <strong>Resposta Esperada (Referência da Professora):</strong>
-            <p style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem;">${escapeHtml(a.expected_answer)}</p>
+            <strong>📚 Resposta Esperada (Gabarito da Professora):</strong>
+            <p style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(a.expected_answer)}</p>
           </div>
 
           <!-- AI Feedback -->
           ${a.ai_feedback ? `
             <div class="review-block review-feedback">
-              <strong>Análise da IA:</strong>
-              <p style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem;">${escapeHtml(a.ai_feedback)}</p>
+              <strong>🤖 Correção e Justificativa Gerada pela IA:</strong>
+              <p id="ai-feedback-text-${a.answer_id}" style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(a.ai_feedback)}</p>
             </div>
           ` : ''}
 
           <!-- Teacher Score & Feedback Customization -->
-          <div style="background: #f8fafc; border: 1px dashed var(--primary); border-radius: 8px; padding: 1rem; margin-top: 1rem;">
-            <div style="font-weight: 600; color: var(--primary-dark); margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
-              <span>✏️ Nota Oficial da Professora Patricia:</span>
-              <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">(Altere a nota se discordar da IA)</span>
+          <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 1.25rem; margin-top: 1rem;">
+            <div style="font-weight: 700; color: var(--primary-dark); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <span>✏️ Nota Oficial e Correção da Professora Patricia:</span>
+              ${a.ai_feedback ? `
+                <button 
+                  type="button" 
+                  class="btn btn-outline btn-sm" 
+                  style="font-size: 0.75rem; padding: 0.2rem 0.5rem;"
+                  onclick="copyAiCorrectionToTeacher(${a.answer_id})"
+                  title="Copiar o texto da IA para este campo para você editar"
+                >
+                  📋 Usar texto da IA como base
+                </button>
+              ` : ''}
             </div>
-            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            
+            <div style="display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap;">
               <div style="width: 140px;">
-                <label style="font-size: 0.75rem; color: var(--text-muted); display: block;">Nota (0 a 10):</label>
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 0.25rem;">Nota (0 a 10):</label>
                 <input 
                   type="number" 
                   step="0.1" 
@@ -419,25 +522,28 @@ async function openReviewModal(examId) {
                   id="score-input-${a.answer_id}" 
                   class="form-control" 
                   value="${currentScore}"
-                  style="font-weight: 700; font-size: 1.1rem;"
+                  style="font-weight: 700; font-size: 1.15rem; color: var(--primary-dark);"
                 >
               </div>
-              <div style="flex: 1; min-width: 200px;">
-                <label style="font-size: 0.75rem; color: var(--text-muted); display: block;">Comentário da Professora (Opcional):</label>
-                <input 
-                  type="text" 
+
+              <div style="flex: 1; min-width: 260px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 0.25rem;">Comentário / Correção da Professora:</label>
+                <textarea 
                   id="feedback-input-${a.answer_id}" 
                   class="form-control" 
-                  value="${escapeHtml(feedback)}"
-                  placeholder="Justificativa da nota..."
-                >
+                  rows="3" 
+                  placeholder="Você pode modificar a correção feita pela IA ou escrever suas considerações para o aluno..."
+                  style="font-size: 0.9rem; line-height: 1.4;"
+                >${escapeHtml(feedback)}</textarea>
               </div>
-              <div style="padding-top: 1.25rem;">
+
+              <div style="padding-top: 1.5rem;">
                 <button 
                   class="btn btn-primary btn-sm" 
                   onclick="saveAnswerGrade(${a.answer_id})"
+                  style="white-space: nowrap;"
                 >
-                  Salvar Nota
+                  💾 Salvar Esta Questão
                 </button>
               </div>
             </div>
@@ -449,6 +555,16 @@ async function openReviewModal(examId) {
     modalReviewBody.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 2rem;">Erro ao carregar prova: ${escapeHtml(err.message)}</div>`;
   }
 }
+
+function copyAiCorrectionToTeacher(answerId) {
+  const aiBlock = document.getElementById(`ai-feedback-text-${answerId}`);
+  const feedbackInput = document.getElementById(`feedback-input-${answerId}`);
+  if (aiBlock && feedbackInput) {
+    feedbackInput.value = aiBlock.innerText.trim();
+    showToast('Texto da IA copiado para o campo de edição!');
+  }
+}
+window.copyAiCorrectionToTeacher = copyAiCorrectionToTeacher;
 
 async function saveAnswerGrade(answerId) {
   const scoreInput = document.getElementById(`score-input-${answerId}`);
