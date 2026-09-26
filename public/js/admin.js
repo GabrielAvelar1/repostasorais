@@ -132,55 +132,6 @@ function setupAdminEvents() {
     }
   });
 
-  // Settings
-  btnOpenSettings.addEventListener('click', openSettingsModal);
-  formSettings.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        geminiApiKey: settingGeminiKey.value.trim(),
-        groqApiKey: settingGroqKey.value.trim(),
-        examTitle: settingExamTitle.value.trim()
-      };
-      const res = await fetch('/api/admin/settings', {
-        method: 'POST',
-        headers: getAdminHeaders(),
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
-      showToast('Configurações salvas!');
-      closeSettingsModal();
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-  // Test AI
-  btnTestAi.addEventListener('click', async () => {
-    aiTestResult.style.display = 'block';
-    aiTestResult.innerHTML = '<span style="color: var(--primary);">⏳ Testando conexão com a IA...</span>';
-
-    try {
-      const key = settingGeminiKey.value.trim() || undefined;
-      const res = await fetch('/api/admin/test-ai', {
-        method: 'POST',
-        headers: getAdminHeaders(),
-        body: JSON.stringify({ provider: 'gemini', apiKey: key })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      aiTestResult.innerHTML = `<div style="background: var(--success-light); color: #065f46; padding: 0.75rem; border-radius: 6px;">
-        ✅ <strong>Sucesso:</strong> IA respondeu com sucesso! ("${escapeHtml(data.reply)}")
-      </div>`;
-    } catch (err) {
-      aiTestResult.innerHTML = `<div style="background: var(--danger-light); color: #991b1b; padding: 0.75rem; border-radius: 6px;">
-        ❌ <strong>Erro:</strong> ${escapeHtml(err.message)}
-      </div>`;
-    }
-  });
-
   // Refresh & Search
   btnRefreshStudents.addEventListener('click', () => {
     loadDashboardData();
@@ -475,34 +426,6 @@ function closeReviewModal() {
   activeReviewExamId = null;
   loadDashboardData();
   loadStudents();
-}
-
-// -------------------------------------------------------------
-// SETTINGS MODAL
-// -------------------------------------------------------------
-async function openSettingsModal() {
-  modalSettings.style.display = 'flex';
-  aiTestResult.style.display = 'none';
-
-  try {
-    const res = await fetch('/api/admin/settings', { headers: getAdminHeaders() });
-    const data = await res.json();
-    if (data.geminiKeyConfigured) {
-      settingGeminiKey.placeholder = `Chave configurada (${data.geminiKeyMasked})`;
-    }
-    if (data.groqKeyConfigured) {
-      settingGroqKey.placeholder = `Chave configurada (${data.groqKeyMasked})`;
-    }
-    if (data.examTitle) {
-      settingExamTitle.value = data.examTitle;
-    }
-  } catch (err) {
-    console.error('Settings load error:', err);
-  }
-}
-
-function closeSettingsModal() {
-  modalSettings.style.display = 'none';
 }
 
 function escapeHtml(text) {

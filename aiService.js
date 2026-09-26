@@ -35,13 +35,44 @@ async function processQueue() {
 }
 
 /**
+ * Get configured Gemini API keys (Free first, then Paid)
+ */
+function getGeminiApiKeys() {
+  const freeKey = process.env.FREE_GEMINI_API_KEY || getSetting('gemini_api_key') || '';
+  const paidKey = process.env.PAID_GEMINI_API_KEY || getSetting('paid_gemini_api_key') || '';
+  const keys = [];
+  if (freeKey) keys.push({ type: 'Gratuito', key: freeKey });
+  if (paidKey) keys.push({ type: 'Pago', key: paidKey });
+  return keys;
+}
+
+/**
+ * Execute Gemini call with fallback from free key to paid key
+ */
+async function callGeminiWithFallback(fn) {
+  const keys = getGeminiApiKeys();
+  let lastError = null;
+
+  for (const item of keys) {
+    try {
+      console.log(`[AI] Executando com plano ${item.type}...`);
+      const result = await fn(item.key);
+      return result;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[AI] Falha no plano ${item.type}:`, err.message);
+    }
+  }
+
+  throw lastError || new Error('Nenhuma chave Gemini configurada');
+}
+
+/**
  * Grade an exam using AI or heuristic fallback
  */
 async function gradeExam(examId) {
-  // Update status to grading
   db.prepare("UPDATE student_exams SET status = 'grading' WHERE id = ?").run(examId);
 
-  // Fetch answers and questions
   const answers = db.prepare(`
     SELECT 
       ea.id as answer_id,
@@ -58,34 +89,18 @@ async function gradeExam(examId) {
 
   if (!answers || answers.length === 0) return;
 
-  const geminiApiKey = getSetting('gemini_api_key') || process.env.GEMINI_API_KEY || '';
-  const groqApiKey = getSetting('groq_api_key') || process.env.GROQ_API_KEY || '';
-
   let gradingResults = null;
 
-  if (geminiApiKey) {
-    try {
-      gradingResults = await gradeWithGemini(answers, geminiApiKey);
-    } catch (err) {
-      console.warn('[AI] Gemini falhou, tentando fallback:', err.message);
-    }
+  try {
+    gradingResults = await callGeminiWithFallback((key) => gradeWithGemini(answers, key));
+  } catch (err) {
+    console.warn('[AI] Gemini falhou em todos os planos, aplicando fallback offline:', err.message);
   }
 
-  if (!gradingResults && groqApiKey) {
-    try {
-      gradingResults = await gradeWithGroq(answers, groqApiKey);
-    } catch (err) {
-      console.warn('[AI] Groq falhou, tentando fallback heurístico:', err.message);
-    }
-  }
-
-  // Fallback if no API key or network error
   if (!gradingResults) {
-    console.log('[AI] Aplicando avaliação de referência offline...');
     gradingResults = gradeWithHeuristic(answers);
   }
 
-  // Update DB with results
   const updateAnswerStmt = db.prepare(`
     UPDATE exam_answers 
     SET ai_score = ?, ai_feedback = ?, final_score = COALESCE(teacher_score, ?), teacher_feedback = COALESCE(teacher_feedback, ?)
@@ -112,47 +127,33 @@ async function gradeExam(examId) {
  * Grade all 5 questions in a single request with Google Gemini API
  */
 async function gradeWithGemini(answers, apiKey) {
-  const preferredModel = getSetting('ai_model') || 'gemini-3.8-flash';
-  const candidateModels = [preferredModel, 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'].filter((v, i, a) => a.indexOf(v) === i);
+  const model = 'gemini-3.8-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const prompt = buildEvaluationPrompt(answers);
 
-  let lastError = null;
-
-  for (const model of candidateModels) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.2
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Gemini API error ${response.status} (${model}): ${errText}`);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.2
       }
+    })
+  });
 
-      const data = await response.json();
-      const textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!textOutput) throw new Error('Resposta vazia da API Gemini');
-
-      // Remember working model
-      setSetting('ai_model', model);
-      return parseGradingResponse(textOutput, answers);
-    } catch (err) {
-      lastError = err;
-      console.warn(`[AI] Tentativa com modelo ${model} falhou:`, err.message);
-    }
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${errText}`);
   }
 
-  throw lastError || new Error('Nenhum modelo Gemini respondeu com sucesso');
+  const data = await response.json();
+  const textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!textOutput) throw new Error('Resposta vazia da API Gemini');
+
+  return parseGradingResponse(textOutput, answers);
 }
 
 /**
@@ -356,84 +357,56 @@ async function testAIConnection(apiKey, provider = 'gemini') {
 /**
  * Transcribe Audio using Gemini Multimodal or Groq Whisper
  */
+/**
+ * Transcribe Audio using Gemini Multimodal (with Free -> Paid key fallback)
+ */
 async function transcribeAudio(base64Data, mimeType = 'audio/webm') {
-  const geminiApiKey = getSetting('gemini_api_key') || process.env.GEMINI_API_KEY || '';
-  const groqApiKey = getSetting('groq_api_key') || process.env.GROQ_API_KEY || '';
-
   let cleanMime = (mimeType || 'audio/webm').split(';')[0].trim();
   if (!cleanMime) cleanMime = 'audio/webm';
 
-  if (geminiApiKey) {
-    const candidateModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-    for (const model of candidateModels) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    inline_data: {
-                      mime_type: cleanMime,
-                      data: base64Data
-                    }
-                  },
-                  {
-                    text: 'Você é um assistente de transcrição de áudio para alunos de odontologia. Transcreva com fidelidade absoluta tudo o que a pessoa falou neste áudio em português do Brasil. Retorne APENAS o texto falado transcrito, sem introdução, sem aspas e sem comentários.'
-                  }
-                ]
-              }
-            ],
-            generationConfig: {
-              temperature: 0.1
-            }
-          })
-        });
+  try {
+    return await callGeminiWithFallback(async (apiKey) => {
+      const model = 'gemini-3.8-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text && text.trim()) return text.trim();
-        } else {
-          const err = await res.text();
-          console.warn(`[Transcription] Falha no Gemini (${model}):`, err);
-        }
-      } catch (e) {
-        console.warn(`[Transcription] Erro no modelo ${model}:`, e.message);
-      }
-    }
-  }
-
-  if (groqApiKey) {
-    try {
-      const buffer = Buffer.from(base64Data, 'base64');
-      const formData = new FormData();
-      const blob = new Blob([buffer], { type: cleanMime });
-      formData.append('file', blob, 'audio.webm');
-      formData.append('model', 'whisper-large-v3');
-      formData.append('language', 'pt');
-
-      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      const res = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqApiKey}`
-        },
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: cleanMime,
+                    data: base64Data
+                  }
+                },
+                {
+                  text: 'Você é um assistente especialista de transcrição para alunos de odontologia. Transcreva fielmente as palavras faladas no áudio em português do Brasil. Retorne estritamente o texto falado, sem aspas, sem introduções e sem explicações.'
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.1
+          }
+        })
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.text) return data.text.trim();
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Gemini audio error ${res.status}: ${errText}`);
       }
-    } catch (e) {
-      console.warn('[Transcription] Falha no Groq Whisper:', e.message);
-    }
-  }
 
-  return '';
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      return (text || '').trim();
+    });
+  } catch (err) {
+    console.warn('[Transcription] Falha geral na transcrição:', err.message);
+    return '';
+  }
 }
 
 module.exports = {

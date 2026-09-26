@@ -638,10 +638,10 @@ async function stopRecording() {
         audioPreviewContainer.style.display = 'block';
       }
 
-      // If text is empty or too short (typical in Brave where Web Speech is blocked), transcribe via backend AI!
-      const currentText = (studentAnswerInput.value || '').trim();
-      if (currentText.length < 5 && audioBlob.size > 1000) {
-        speechStatus.textContent = '⏳ Áudio capturado! Transcrevendo com Inteligência Artificial...';
+      // Send recorded audio to backend AI for transcription
+      if (audioBlob.size > 100) {
+        speechStatus.textContent = '⏳ Áudio capturado! A Inteligência Artificial está transcrevendo sua resposta...';
+        speechStatus.classList.add('active');
         try {
           const reader = new FileReader();
           reader.readAsDataURL(audioBlob);
@@ -658,26 +658,30 @@ async function stopRecording() {
               });
               const data = await res.json();
               if (data.transcript && data.transcript.trim()) {
-                studentAnswerInput.value = data.transcript.trim();
+                const existing = (studentAnswerInput.value || '').trim();
+                const newText = existing ? `${existing} ${data.transcript.trim()}` : data.transcript.trim();
+                studentAnswerInput.value = newText;
                 if (questions[currentQuestionIndex]) {
-                  questions[currentQuestionIndex].student_answer = data.transcript.trim();
+                  questions[currentQuestionIndex].student_answer = newText;
                   updateStepsUI();
                   scheduleAutoSave();
                 }
-                speechStatus.textContent = '✅ Áudio transcrito com sucesso! Você pode editar o texto se quiser.';
+                speechStatus.textContent = '✅ Áudio transcrito com sucesso pela IA! Você pode editar o texto se quiser.';
               } else {
-                speechStatus.textContent = 'Áudio gravado com sucesso! (Você também pode digitar/completar o texto abaixo).';
+                speechStatus.textContent = 'Áudio gravado. Você pode falar novamente ou digitar no campo abaixo.';
               }
             } catch (apiErr) {
               console.warn('Backend transcription error:', apiErr);
-              speechStatus.textContent = 'Áudio gravado. Você pode digitar sua resposta caso a IA esteja offline.';
+              speechStatus.textContent = 'Áudio salvo. Você pode digitar ou complementar sua resposta abaixo.';
             }
+            speechStatus.classList.remove('active');
           };
         } catch (e) {
           console.warn('FileReader error:', e);
+          speechStatus.classList.remove('active');
         }
       } else {
-        speechStatus.textContent = 'Gravação concluída. Você pode revisar e editar o texto acima.';
+        speechStatus.textContent = 'Gravação muito curta. Clique novamente para gravar.';
       }
 
       // Cleanup stream
