@@ -66,6 +66,23 @@ Ao digitar esses dados na tela inicial, o sistema reconhece automaticamente o pe
 
 ---
 
+## 📱 Como Usar no Celular (iPhone / Safari e Android)
+
+A Apple possui uma restrição de segurança no **Safari do iPhone**: o microfone em tempo real só é liberado se a conexão tiver **HTTPS (cadeado seguro)**.
+
+Você tem duas formas simples de usar no iPhone:
+
+### Opção 1: Gravação Nativa Automática (Sem configurar nada)
+- Ao acessar pelo IP local (`http://192.168.2.38:3000`) e clicar em **"Gravar Resposta por Voz"**, o sistema detecta o iPhone e abre **automaticamente o gravador de voz nativo do celular**.
+- Você grava sua resposta, clica em "Usar Gravação" e o áudio é transcrito pela IA e inserido no campo de texto!
+
+### Opção 2: Conexão HTTPS com Cadeado Seguro (Recomendado para toda a turma)
+- Na pasta do projeto, clique duas vezes em **`iniciar_com_celular_https.bat`**.
+- Ele gerará um link seguro com `https://...loca.lt`.
+- Basta enviar esse link para os alunos no WhatsApp ou abrir no iPhone. O Safari liberará o microfone direto na página sem restrições!
+
+---
+
 ## 🛡️ Dúvidas Frequentes
 
 - **E se faltar internet na sala durante a prova?**
