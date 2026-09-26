@@ -143,7 +143,14 @@ app.post('/api/exam/transcribe-audio', async (req, res) => {
       return res.status(400).json({ error: 'Nenhum dado de áudio recebido.' });
     }
 
-    const cleanBase64 = audioData.replace(/^data:audio\/[a-z0-9.-]+;base64,/, '');
+    let cleanBase64 = audioData;
+    if (cleanBase64.includes(';base64,')) {
+      cleanBase64 = cleanBase64.split(';base64,')[1];
+    } else if (cleanBase64.startsWith('data:')) {
+      cleanBase64 = cleanBase64.substring(cleanBase64.indexOf(',') + 1);
+    }
+    cleanBase64 = cleanBase64.replace(/\s+/g, '');
+
     const transcript = await transcribeAudio(cleanBase64, mimeType || 'audio/webm');
 
     res.json({

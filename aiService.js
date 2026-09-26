@@ -328,50 +328,79 @@ async function testAIConnection(apiKey, provider = 'gemini') {
  * Transcribe Audio using Gemini Multimodal or Groq Whisper
  */
 /**
- * Transcribe Audio using Gemini Multimodal (with Free -> Paid key fallback)
+ * Transcribe Audio using Gemini Multimodal (with Model Fallback & Free -> Paid key fallback)
  */
 async function transcribeAudio(base64Data, mimeType = 'audio/webm') {
-  let cleanMime = (mimeType || 'audio/webm').split(';')[0].trim();
-  if (!cleanMime) cleanMime = 'audio/webm';
+  let cleanMime = (mimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
+  if (!cleanMime || cleanMime === 'audio/x-m4a' || cleanMime === 'audio/m4a') {
+    cleanMime = 'audio/mp4';
+  }
+  const validMimes = ['audio/webm', 'audio/mp4', 'audio/wav', 'audio/ogg', 'audio/mp3', 'audio/aac', 'audio/flac', 'audio/mpeg'];
+  if (!validMimes.includes(cleanMime)) {
+    cleanMime = 'audio/webm';
+  }
+
+  // Tested candidate models supporting audio multimodal inputs
+  const candidateModels = [
+    'gemini-flash-latest',
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-2.5-flash'
+  ];
 
   try {
     return await callGeminiWithFallback(async (apiKey) => {
-      const model = 'gemini-3.8-flash';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      let lastErr = null;
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
+      for (const model of candidateModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
                 {
-                  inlineData: {
-                    mimeType: cleanMime,
-                    data: base64Data
-                  }
-                },
-                {
-                  text: 'Você é um assistente especialista de transcrição para alunos de odontologia. Transcreva fielmente as palavras faladas no áudio em português do Brasil. Retorne estritamente o texto falado, sem aspas, sem introduções e sem explicações.'
+                  parts: [
+                    {
+                      inlineData: {
+                        mimeType: cleanMime,
+                        data: base64Data
+                      }
+                    },
+                    {
+                      text: 'Você é um assistente especialista de transcrição para alunos de odontologia. Transcreva fielmente as palavras faladas no áudio em português do Brasil. Retorne estritamente o texto falado, sem aspas, sem introduções e sem explicações.'
+                    }
+                  ]
                 }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.1
-          }
-        })
-      });
+              ],
+              generationConfig: {
+                temperature: 0.1
+              }
+            })
+          });
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Gemini audio error ${res.status}: ${errText}`);
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text && text.trim()) {
+              console.log(`[Transcription] Sucesso com modelo ${model}: "${text.trim().substring(0, 40)}..."`);
+              return text.trim();
+            }
+          } else {
+            const errText = await res.text();
+            console.warn(`[Transcription] Modelo ${model} falhou com status ${res.status}: ${errText.substring(0, 100)}`);
+            lastErr = new Error(`Model ${model} status ${res.status}`);
+          }
+        } catch (mErr) {
+          console.warn(`[Transcription] Exceção com modelo ${model}:`, mErr.message);
+          lastErr = mErr;
+        }
       }
 
-      const data = await res.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      return (text || '').trim();
+      throw lastErr || new Error('Nenhum modelo Gemini conseguiu transcrever o áudio');
     });
   } catch (err) {
     console.warn('[Transcription] Falha geral na transcrição:', err.message);

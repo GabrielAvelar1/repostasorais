@@ -661,6 +661,7 @@ async function stopRecording() {
                 const existing = (studentAnswerInput.value || '').trim();
                 const newText = existing ? `${existing} ${data.transcript.trim()}` : data.transcript.trim();
                 studentAnswerInput.value = newText;
+                studentAnswerInput.dispatchEvent(new Event('input'));
                 if (questions[currentQuestionIndex]) {
                   questions[currentQuestionIndex].student_answer = newText;
                   updateStepsUI();

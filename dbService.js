@@ -73,8 +73,24 @@ async function findOrCreateUser(registration, fullName, role = 'student') {
  * Questions
  */
 async function getAllQuestions() {
-  const { data } = await supabase.from('questions').select('*').order('id', { ascending: true });
-  if (data && data.length > 0) return data;
+  try {
+    const { data } = await supabase.from('questions').select('*').order('id', { ascending: true });
+    if (data && data.length > 0) return data;
+
+    // Auto-seed Supabase questions if table is empty
+    if (localQuestions.length > 0) {
+      const rows = localQuestions.map(q => ({
+        id: q.id,
+        question: q.question,
+        expected_answer: q.expectedAnswer
+      }));
+      await supabase.from('questions').upsert(rows);
+      const { data: seeded } = await supabase.from('questions').select('*').order('id', { ascending: true });
+      if (seeded && seeded.length > 0) return seeded;
+    }
+  } catch (err) {
+    console.warn('Supabase questions read/seed warning:', err.message);
+  }
 
   return localQuestions.map(q => ({
     id: q.id,
@@ -138,6 +154,57 @@ async function getExamAnswers(examId) {
     .order('order_num', { ascending: true });
 
   if (error) throw error;
+
+  // Self-healing: If an exam exists but has 0 answers (due to a previous failed attempt), populate 5 random questions immediately
+  if (!answers || answers.length === 0) {
+    const allQ = await getAllQuestions();
+    const shuffled = [...allQ].sort(() => 0.5 - Math.random());
+    const selected5 = shuffled.slice(0, 5);
+    const rows = selected5.map((q, idx) => ({
+      exam_id: examId,
+      question_id: q.id,
+      order_num: idx + 1,
+      student_answer: ''
+    }));
+    await supabase.from('exam_answers').insert(rows);
+
+    const { data: retryAnswers } = await supabase
+      .from('exam_answers')
+      .select(`
+        id,
+        exam_id,
+        question_id,
+        order_num,
+        student_answer,
+        ai_score,
+        ai_feedback,
+        teacher_score,
+        teacher_feedback,
+        final_score
+      `)
+      .eq('exam_id', examId)
+      .order('order_num', { ascending: true });
+
+    if (retryAnswers && retryAnswers.length > 0) {
+      const qMap = new Map(allQ.map(q => [Number(q.id), q]));
+      return retryAnswers.map(a => {
+        const q = qMap.get(Number(a.question_id)) || {};
+        return {
+          answer_id: a.id,
+          question_id: a.question_id,
+          order_num: a.order_num,
+          student_answer: a.student_answer || '',
+          ai_score: a.ai_score,
+          ai_feedback: a.ai_feedback,
+          teacher_score: a.teacher_score,
+          teacher_feedback: a.teacher_feedback,
+          final_score: a.final_score,
+          question: q.question || '',
+          expected_answer: q.expected_answer || ''
+        };
+      });
+    }
+  }
 
   const allQ = await getAllQuestions();
   const qMap = new Map(allQ.map(q => [Number(q.id), q]));
