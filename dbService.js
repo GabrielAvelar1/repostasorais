@@ -383,6 +383,74 @@ async function getDashboardStats() {
   };
 }
 
+/**
+ * Reset a student's exam (removes answers and exam record so they can start fresh)
+ */
+async function resetStudentExam(userId) {
+  const { data: exam } = await supabase
+    .from('student_exams')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (exam) {
+    await supabase.from('exam_answers').delete().eq('exam_id', exam.id);
+    await supabase.from('student_exams').delete().eq('id', exam.id);
+  }
+  return true;
+}
+
+/**
+ * Delete a student from the class (removes exam, answers, and user record)
+ */
+async function deleteStudent(userId) {
+  await resetStudentExam(userId);
+  const { error } = await supabase.from('users').delete().eq('id', userId);
+  if (error) throw error;
+  return true;
+}
+
+/**
+ * Fetch detailed data for all students and their answers for export
+ */
+async function getDetailedExamExportData() {
+  const students = await getStudentsList();
+  const allQ = await getAllQuestions();
+  const qMap = new Map(allQ.map(q => [Number(q.id), q]));
+
+  const result = [];
+  for (const s of students) {
+    let answers = [];
+    if (s.exam_id) {
+      const { data: rawAnswers } = await supabase
+        .from('exam_answers')
+        .select('*')
+        .eq('exam_id', s.exam_id)
+        .order('order_num', { ascending: true });
+
+      answers = (rawAnswers || []).map(a => {
+        const q = qMap.get(Number(a.question_id)) || {};
+        return {
+          order_num: a.order_num,
+          question: q.question || '',
+          expected_answer: q.expected_answer || '',
+          student_answer: a.student_answer || '',
+          ai_score: a.ai_score,
+          ai_feedback: a.ai_feedback,
+          teacher_score: a.teacher_score,
+          teacher_feedback: a.teacher_feedback,
+          final_score: a.final_score
+        };
+      });
+    }
+    result.push({
+      student: s,
+      answers: answers
+    });
+  }
+  return result;
+}
+
 module.exports = {
   supabase,
   getSetting,
@@ -399,5 +467,8 @@ module.exports = {
   updateGradingResults,
   updateTeacherGrade,
   getStudentsList,
-  getDashboardStats
+  getDashboardStats,
+  resetStudentExam,
+  deleteStudent,
+  getDetailedExamExportData
 };

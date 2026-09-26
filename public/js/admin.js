@@ -172,7 +172,22 @@ function setupAdminEvents() {
       btnRegradeAi.textContent = '🤖 Reavaliar com IA';
     }
   });
+
+  // Export Modal Trigger
+  const btnOpenExportModal = document.getElementById('btn-open-export-modal');
+  if (btnOpenExportModal) {
+    btnOpenExportModal.addEventListener('click', () => {
+      const modal = document.getElementById('modal-export');
+      if (modal) modal.style.display = 'flex';
+    });
+  }
 }
+
+function closeExportModal() {
+  const modal = document.getElementById('modal-export');
+  if (modal) modal.style.display = 'none';
+}
+window.closeExportModal = closeExportModal;
 
 // -------------------------------------------------------------
 // LOAD DASHBOARD STATS
@@ -264,9 +279,15 @@ function renderStudentsTable() {
 
     const dateDisplay = s.submitted_at ? new Date(s.submitted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
 
-    const actionBtn = s.exam_id 
-      ? `<button class="btn btn-outline btn-sm" onclick="openReviewModal(${s.exam_id})">👁️ Revisar / Alterar Nota</button>`
-      : `<span style="font-size: 0.85rem; color: var(--text-muted);">Aguardando início</span>`;
+    const escapedName = escapeHtml(s.full_name).replace(/'/g, "\\'");
+
+    const actionBtns = `
+      <div style="display: inline-flex; gap: 0.35rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+        ${s.exam_id ? `<button class="btn btn-outline btn-sm" onclick="openReviewModal(${s.exam_id})" title="Revisar respostas e notas">👁️ Revisar</button>` : ''}
+        ${s.exam_id ? `<button class="btn btn-outline btn-sm" style="color: #b45309; border-color: #fde68a;" onclick="handleResetExam(${s.user_id}, '${escapedName}')" title="Zerar a prova deste aluno para ele refazer">🔄 Resetar Prova</button>` : ''}
+        <button class="btn btn-outline btn-sm" style="color: #b91c1c; border-color: #fecaca;" onclick="handleDeleteStudent(${s.user_id}, '${escapedName}')" title="Remover aluno da turma">🗑️ Excluir</button>
+      </div>
+    `;
 
     return `
       <tr>
@@ -275,11 +296,55 @@ function renderStudentsTable() {
         <td>${statusBadge}</td>
         <td>${scoreDisplay}</td>
         <td>${dateDisplay}</td>
-        <td style="text-align: right;">${actionBtn}</td>
+        <td style="text-align: right;">${actionBtns}</td>
       </tr>
     `;
   }).join('');
 }
+
+async function handleResetExam(userId, studentName) {
+  if (!confirm(`Deseja realmente RESETAR a prova do(a) aluno(a) "${studentName}"?\n\nAs respostas e a nota serão apagadas e o aluno poderá realizar a prova novamente do zero com novo sorteio de questões.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/admin/student/${userId}/reset-exam`, {
+      method: 'POST',
+      headers: getAdminHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    showToast(`🔄 Prova de "${studentName}" resetada com sucesso!`);
+    loadDashboardData();
+    loadStudents();
+  } catch (err) {
+    alert(err.message || 'Erro ao resetar prova.');
+  }
+}
+window.handleResetExam = handleResetExam;
+
+async function handleDeleteStudent(userId, studentName) {
+  if (!confirm(`ATENÇÃO: Deseja realmente EXCLUIR o(a) aluno(a) "${studentName}" da turma?\n\nO cadastro do aluno e qualquer histórico de prova serão removidos definitivamente.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/admin/student/${userId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    showToast(`🗑️ Aluno(a) "${studentName}" removido(a) da turma!`);
+    loadDashboardData();
+    loadStudents();
+  } catch (err) {
+    alert(err.message || 'Erro ao excluir aluno.');
+  }
+}
+window.handleDeleteStudent = handleDeleteStudent;
 
 // -------------------------------------------------------------
 // REVIEW EXAM MODAL & EDIT SCORES

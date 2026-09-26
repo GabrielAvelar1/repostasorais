@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const XLSX = require('xlsx');
 const dbService = require('./dbService');
 const { enqueueExamGrading, transcribeAudio } = require('./aiService');
 
@@ -357,32 +358,164 @@ app.post('/api/admin/regrade-exam/:id', requireTeacher, (req, res) => {
   }
 });
 
-// Export CSV for Grades
-app.get('/api/admin/export-csv', requireTeacher, async (req, res) => {
+// Reset student's exam (for testing or retake)
+app.post('/api/admin/student/:userId/reset-exam', requireTeacher, async (req, res) => {
   try {
-    const list = await dbService.getStudentsList();
-
-    let csv = 'Matricula,Nome Completo,Status da Prova,Nota Final,Data de Envio\n';
-    for (const r of list) {
-      const nota = r.total_score !== null && r.total_score !== undefined ? String(r.total_score).replace('.', ',') : '-';
-      const statusMap = {
-        'draft': 'Em andamento',
-        'submitted': 'Enviada',
-        'grading': 'Corrigindo',
-        'graded': 'Corrigida'
-      };
-      const statusStr = statusMap[r.exam_status] || 'Não iniciou';
-      const dataStr = r.submitted_at ? new Date(r.submitted_at).toLocaleString('pt-BR') : '-';
-      csv += `"${r.registration}","${r.full_name}","${statusStr}","${nota}","${dataStr}"\n`;
-    }
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="notas_prova_oral_patricia.csv"');
-    res.send('\uFEFF' + csv);
+    const userId = parseInt(req.params.userId);
+    await dbService.resetStudentExam(userId);
+    res.json({ success: true, message: 'Prova resetada com sucesso! O aluno poderá realizá-la novamente do zero.' });
   } catch (err) {
-    console.error('Export error:', err);
-    res.status(500).json({ error: 'Erro ao gerar relatório CSV.' });
+    console.error('Error resetting exam:', err);
+    res.status(500).json({ error: 'Erro ao resetar a prova do aluno.' });
   }
+});
+
+// Delete student from class
+app.delete('/api/admin/student/:userId', requireTeacher, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    await dbService.deleteStudent(userId);
+    res.json({ success: true, message: 'Aluno removido da turma com sucesso!' });
+  } catch (err) {
+    console.error('Error deleting student:', err);
+    res.status(500).json({ error: 'Erro ao excluir aluno da turma.' });
+  }
+});
+
+// Export Excel for Grades (Summary or Detailed with Questions and AI Corrections)
+app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
+  try {
+    const type = req.query.type || 'summary';
+    const wb = XLSX.utils.book_new();
+
+    if (type === 'summary') {
+      const list = await dbService.getStudentsList();
+      const rows = list.map(r => {
+        const nota = r.total_score !== null && r.total_score !== undefined ? Number(r.total_score) : '-';
+        const statusMap = {
+          'draft': 'Em andamento',
+          'submitted': 'Enviada (Aguardando IA)',
+          'grading': 'Corrigindo (IA)',
+          'graded': 'Corrigida'
+        };
+        return {
+          'Matrícula': r.registration,
+          'Nome Completo': r.full_name,
+          'Nota Final': nota,
+          'Status da Prova': statusMap[r.exam_status] || 'Não iniciou',
+          'Data de Envio': r.submitted_at ? new Date(r.submitted_at).toLocaleString('pt-BR') : '-'
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 16 },
+        { wch: 35 },
+        { wch: 12 },
+        { wch: 24 },
+        { wch: 22 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, 'Notas Resumidas');
+
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="planilha_notas_resumida_patricia.xlsx"');
+      return res.send(buf);
+
+    } else {
+      // Detailed: Summary tab + Detailed questions tab
+      const data = await dbService.getDetailedExamExportData();
+
+      // Tab 1: Resumo Geral
+      const summaryRows = data.map(item => {
+        const s = item.student;
+        const nota = s.total_score !== null && s.total_score !== undefined ? Number(s.total_score) : '-';
+        const statusMap = {
+          'draft': 'Em andamento',
+          'submitted': 'Enviada (Aguardando IA)',
+          'grading': 'Corrigindo (IA)',
+          'graded': 'Corrigida'
+        };
+        return {
+          'Matrícula': s.registration,
+          'Nome Completo': s.full_name,
+          'Nota Final': nota,
+          'Status da Prova': statusMap[s.exam_status] || 'Não iniciou',
+          'Data de Envio': s.submitted_at ? new Date(s.submitted_at).toLocaleString('pt-BR') : '-'
+        };
+      });
+
+      const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+      wsSummary['!cols'] = [
+        { wch: 16 },
+        { wch: 35 },
+        { wch: 12 },
+        { wch: 24 },
+        { wch: 22 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumo Geral');
+
+      // Tab 2: Questões, Respostas Transcritas e Correção da IA
+      const detailRows = [];
+      data.forEach(item => {
+        const s = item.student;
+        if (!item.answers || item.answers.length === 0) {
+          detailRows.push({
+            'Matrícula': s.registration,
+            'Nome Completo': s.full_name,
+            'Nota Final': s.total_score !== null && s.total_score !== undefined ? Number(s.total_score) : '-',
+            'Questão Nº': '-',
+            'Enunciado': 'Ainda não iniciou a prova',
+            'Resposta Transcrita do Aluno': '-',
+            'Resposta Esperada (Gabarito)': '-',
+            'Nota da Questão (IA)': '-',
+            'Feedback / Correção da IA': '-'
+          });
+        } else {
+          item.answers.forEach(a => {
+            detailRows.push({
+              'Matrícula': s.registration,
+              'Nome Completo': s.full_name,
+              'Nota Final': s.total_score !== null && s.total_score !== undefined ? Number(s.total_score) : '-',
+              'Questão Nº': a.order_num,
+              'Enunciado': a.question,
+              'Resposta Transcrita do Aluno': a.student_answer || '(Sem resposta)',
+              'Resposta Esperada (Gabarito)': a.expected_answer,
+              'Nota da Questão (IA)': a.final_score !== null && a.final_score !== undefined ? Number(a.final_score) : (a.ai_score !== null ? Number(a.ai_score) : '-'),
+              'Feedback / Correção da IA': a.teacher_feedback || a.ai_feedback || '-'
+            });
+          });
+        }
+      });
+
+      const wsDetails = XLSX.utils.json_to_sheet(detailRows);
+      wsDetails['!cols'] = [
+        { wch: 16 },
+        { wch: 30 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 45 },
+        { wch: 55 },
+        { wch: 45 },
+        { wch: 16 },
+        { wch: 55 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsDetails, 'Questões e Correções IA');
+
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="planilha_notas_completa_questoes_ia.xlsx"');
+      return res.send(buf);
+    }
+  } catch (err) {
+    console.error('Export Excel error:', err);
+    res.status(500).json({ error: 'Erro ao gerar planilha Excel.' });
+  }
+});
+
+// Backward-compatible CSV route
+app.get('/api/admin/export-csv', requireTeacher, async (req, res) => {
+  res.redirect('/api/admin/export-excel?type=summary');
 });
 
 // Start server if not running as serverless function
