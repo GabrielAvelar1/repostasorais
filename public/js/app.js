@@ -52,6 +52,7 @@ const btnCheckGradesNow = document.getElementById('btn-check-grades-now');
 // -------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
   setupSpeechRecognition();
+  setupMobileAudioFallback();
   restoreSession();
   setupEventListeners();
 });
@@ -415,6 +416,61 @@ let restartRecognitionTimer = null;
 const recordingTimerEl = document.getElementById('recording-timer');
 const audioPreviewContainer = document.getElementById('audio-preview-container');
 const audioPreview = document.getElementById('audio-preview');
+const mobileMicInput = document.getElementById('mobile-mic-input');
+
+function setupMobileAudioFallback() {
+  if (!mobileMicInput) return;
+  mobileMicInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    speechStatus.textContent = '⏳ Áudio capturado! Transcrevendo com Inteligência Artificial...';
+    speechStatus.classList.add('active');
+
+    // Preview
+    if (audioPreview && audioPreviewContainer) {
+      audioPreview.src = URL.createObjectURL(file);
+      audioPreviewContainer.style.display = 'block';
+    }
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = async () => {
+        const base64Audio = reader.result;
+        try {
+          const res = await fetch('/api/exam/transcribe-audio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audioData: base64Audio,
+              mimeType: file.type || 'audio/mp4'
+            })
+          });
+          const data = await res.json();
+          if (data.transcript && data.transcript.trim()) {
+            studentAnswerInput.value = data.transcript.trim();
+            if (questions[currentQuestionIndex]) {
+              questions[currentQuestionIndex].student_answer = data.transcript.trim();
+              updateStepsUI();
+              scheduleAutoSave();
+            }
+            speechStatus.textContent = '✅ Áudio transcrito com sucesso! Você pode editar o texto se quiser.';
+          } else {
+            speechStatus.textContent = 'Áudio gravado com sucesso! Digite ou ajuste sua resposta abaixo.';
+          }
+        } catch (err) {
+          console.warn('Transcription error:', err);
+          speechStatus.textContent = 'Áudio gravado. Você pode digitar sua resposta abaixo.';
+        }
+        speechStatus.classList.remove('active');
+      };
+    } catch (err) {
+      console.warn('FileReader error:', err);
+      speechStatus.classList.remove('active');
+    }
+  });
+}
 
 function setupSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -485,6 +541,11 @@ async function startRecording() {
   try {
     // 1. Request microphone access
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (mobileMicInput) {
+        speechStatus.textContent = '📱 Abrindo gravador nativo do seu iPhone/celular...';
+        mobileMicInput.click();
+        return;
+      }
       alert('Seu navegador não suporta gravação de áudio no microfone.');
       return;
     }
