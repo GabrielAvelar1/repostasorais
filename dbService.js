@@ -247,13 +247,16 @@ async function getExamAnswers(examId) {
 }
 
 async function saveDraftAnswers(examId, answersList) {
-  for (const item of answersList) {
-    await supabase
-      .from('exam_answers')
-      .update({ student_answer: item.studentAnswer || '' })
-      .eq('exam_id', examId)
-      .eq('question_id', item.questionId);
-  }
+  if (!answersList || !Array.isArray(answersList)) return;
+  await Promise.all(
+    answersList.map(item =>
+      supabase
+        .from('exam_answers')
+        .update({ student_answer: item.studentAnswer || '' })
+        .eq('exam_id', examId)
+        .eq('question_id', item.questionId)
+    )
+  );
 }
 
 async function submitExam(examId, answersList) {
@@ -271,11 +274,13 @@ async function submitExam(examId, answersList) {
 }
 
 async function updateGradingResults(examId, results) {
+  if (!results || !Array.isArray(results) || results.length === 0) return 0;
+
   let totalScore = 0;
-  for (const res of results) {
+  const updates = results.map(res => {
     const scoreVal = Math.min(10, Math.max(0, parseFloat(res.score) || 0));
     totalScore += scoreVal;
-    await supabase
+    return supabase
       .from('exam_answers')
       .update({
         ai_score: scoreVal,
@@ -284,7 +289,9 @@ async function updateGradingResults(examId, results) {
         teacher_feedback: res.feedback || ''
       })
       .eq('id', res.answerId);
-  }
+  });
+
+  await Promise.all(updates);
 
   const averageScore = Math.round((totalScore / results.length) * 10) / 10;
 

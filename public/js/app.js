@@ -206,7 +206,10 @@ function setupEventListeners() {
 
   // Submit exam
   btnFinishExam.addEventListener('click', async () => {
-    if (isRecording) stopRecording();
+    if (isRecording) {
+      try { await stopRecording(); } catch (e) {}
+      await new Promise(r => setTimeout(r, 400));
+    }
 
     // Check if any question is empty
     const emptyCount = questions.filter(q => !(q.student_answer || '').trim()).length;
@@ -217,10 +220,13 @@ function setupEventListeners() {
 
     if (!confirm(msg)) return;
 
-    try {
-      btnFinishExam.disabled = true;
-      btnFinishExam.textContent = 'Enviando prova...';
+    btnFinishExam.disabled = true;
+    btnFinishExam.textContent = 'Enviando prova...';
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    try {
       const payload = {
         examId: currentExam.id,
         answers: questions.map(q => ({
@@ -235,8 +241,11 @@ function setupEventListeners() {
           'Content-Type': 'application/json',
           'x-user-id': currentUser.id
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar prova');
@@ -245,7 +254,15 @@ function setupEventListeners() {
       showView(viewSubmitted);
       startGradesPolling();
     } catch (err) {
-      alert(err.message);
+      clearTimeout(timeoutId);
+      const isTimeout = err.name === 'AbortError';
+      if (isTimeout) {
+        showToast('Conexão lenta. Verificando envio da prova...');
+      } else {
+        alert(err.message || 'Erro ao enviar prova');
+      }
+      await loadStudentFlow();
+    } finally {
       btnFinishExam.disabled = false;
       btnFinishExam.textContent = '✓ Finalizar e Enviar Prova';
     }
@@ -549,6 +566,13 @@ function setupSpeechRecognition() {
 
     recognition.onerror = (event) => {
       console.log('[SpeechRecognition Error]', event.error);
+      if (event.error === 'network' || event.error === 'not-allowed') {
+        try { recognition.stop(); } catch (e) {}
+        recognition = null;
+        if (speechStatus) {
+          speechStatus.textContent = '🔴 Gravando áudio via microfone... A Inteligência Artificial transcreverá sua fala ao parar.';
+        }
+      }
     };
 
     recognition.onend = () => {

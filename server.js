@@ -4,7 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const XLSX = require('xlsx');
 const dbService = require('./dbService');
-const { enqueueExamGrading, transcribeAudio } = require('./aiService');
+const { enqueueExamGrading, gradeExam, transcribeAudio } = require('./aiService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -193,13 +193,18 @@ app.post('/api/exam/submit', async (req, res) => {
 
     await dbService.submitExam(examId, answers);
 
-    // Enqueue for AI correction
-    enqueueExamGrading(examId);
-
+    // Respond immediately to the student so their screen transitions instantly (< 300ms)
     res.json({
       success: true,
       message: 'Prova oral finalizada e enviada com sucesso!'
     });
+
+    // Enqueue for AI correction in the background
+    try {
+      enqueueExamGrading(examId);
+    } catch (qErr) {
+      console.warn('Queue grading error:', qErr.message);
+    }
   } catch (err) {
     console.error('Error submitting exam:', err);
     res.status(500).json({ error: 'Erro ao enviar a prova.' });
@@ -362,7 +367,26 @@ app.get('/api/admin/exam/:id', requireTeacher, async (req, res) => {
 
     if (error || !exam) return res.status(404).json({ error: 'Exame não encontrado.' });
 
-    const answers = await dbService.getExamAnswers(examId);
+    let answers = await dbService.getExamAnswers(examId);
+
+    // If submitted or any question has no AI grade yet, ensure it is graded now
+    if (exam.status === 'submitted' || answers.some(a => a.ai_score === null || a.ai_score === undefined)) {
+      try {
+        await gradeExam(examId);
+        const { data: refreshed } = await dbService.supabase
+          .from('student_exams')
+          .select('total_score, status')
+          .eq('id', examId)
+          .single();
+        if (refreshed) {
+          exam.total_score = refreshed.total_score;
+          exam.status = refreshed.status;
+        }
+        answers = await dbService.getExamAnswers(examId);
+      } catch (gErr) {
+        console.warn('On-demand review grading warning:', gErr.message);
+      }
+    }
 
     res.json({
       exam: {

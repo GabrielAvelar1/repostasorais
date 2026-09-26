@@ -27,8 +27,8 @@ async function processQueue() {
     } catch (err) {
       console.error(`[AI Grading] Erro ao corrigir Exame ID ${examId}:`, err);
     }
-    // Safe delay between requests: 2.5 seconds (ensures well below 15 RPM limit)
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    // Safe delay between requests: 800ms
+    await new Promise(resolve => setTimeout(resolve, 800));
   }
 
   isProcessingQueue = false;
@@ -122,33 +122,49 @@ async function gradeExam(examId) {
  * Grade all 5 questions in a single request with Google Gemini API
  */
 async function gradeWithGemini(answers, apiKey) {
-  const model = 'gemini-3.8-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
+  const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-2.5-flash'];
   const prompt = buildEvaluationPrompt(answers);
+  let lastErr = null;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.2
+  for (const model of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.2
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textOutput) {
+          return parseGradingResponse(textOutput, answers);
+        }
+      } else {
+        const errText = await response.text();
+        lastErr = new Error(`Gemini ${model} error ${response.status}: ${errText.substring(0, 120)}`);
+        // If quota exceeded or service unavailable, immediately switch to next key
+        if (response.status === 429 || response.status === 503) {
+          throw lastErr;
+        }
       }
-    })
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API error ${response.status}: ${errText}`);
+    } catch (mErr) {
+      lastErr = mErr;
+      if (mErr.message.includes('429') || mErr.message.includes('503')) {
+        throw mErr;
+      }
+    }
   }
 
-  const data = await response.json();
-  const textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!textOutput) throw new Error('Resposta vazia da API Gemini');
-
-  return parseGradingResponse(textOutput, answers);
+  throw lastErr || new Error('Nenhum modelo Gemini respondeu para correção.');
 }
 
 /**
