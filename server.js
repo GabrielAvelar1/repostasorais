@@ -12,6 +12,17 @@ app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Netlify Functions URL rewrite middleware
+app.use((req, res, next) => {
+  if (req.url.startsWith('/.netlify/functions/api')) {
+    req.url = req.url.replace('/.netlify/functions/api', '') || '/';
+    if (!req.url.startsWith('/api')) {
+      req.url = '/api' + req.url;
+    }
+  }
+  next();
+});
+
 // -------------------------------------------------------------
 // AUTH (FIND OR CREATE STUDENT / TEACHER CHECK)
 // -------------------------------------------------------------
@@ -367,12 +378,16 @@ app.get('/api/admin/export-csv', requireTeacher, async (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`🚀 Sistema de Prova Oral ativo em: http://localhost:${PORT}`);
-  console.log(`⚡ Banco de Dados Conectado: SUPABASE`);
-  console.log(`👩‍🏫 Painel da Professora: Patricia | Matrícula: 12345`);
-  console.log(`🤖 IA: Google Gemini 3.8 Flash com fallback automático`);
-  console.log(`=======================================================`);
-});
+// Start server if not running as serverless function
+if (!process.env.NETLIFY) {
+  app.listen(PORT, () => {
+    console.log(`=======================================================`);
+    console.log(`🚀 Sistema de Prova Oral ativo em: http://localhost:${PORT}`);
+    console.log(`⚡ Banco de Dados Conectado: SUPABASE`);
+    console.log(`👩‍🏫 Painel da Professora: Patricia | Matrícula: 12345`);
+    console.log(`🤖 IA: Google Gemini 3.8 Flash com fallback automático`);
+    console.log(`=======================================================`);
+  });
+}
+
+module.exports = app;
