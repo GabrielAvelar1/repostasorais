@@ -1,4 +1,4 @@
-const { db, getSetting } = require('./db');
+const dbService = require('./dbService');
 
 // In-memory queue to process exam grading safely within free-tier rate limits
 const gradingQueue = [];
@@ -38,8 +38,8 @@ async function processQueue() {
  * Get configured Gemini API keys (Free first, then Paid)
  */
 function getGeminiApiKeys() {
-  const freeKey = process.env.FREE_GEMINI_API_KEY || getSetting('gemini_api_key') || '';
-  const paidKey = process.env.PAID_GEMINI_API_KEY || getSetting('paid_gemini_api_key') || '';
+  const freeKey = process.env.FREE_GEMINI_API_KEY || '';
+  const paidKey = process.env.PAID_GEMINI_API_KEY || '';
   const keys = [];
   if (freeKey) keys.push({ type: 'Gratuito', key: freeKey });
   if (paidKey) keys.push({ type: 'Pago', key: paidKey });
@@ -71,56 +71,26 @@ async function callGeminiWithFallback(fn) {
  * Grade an exam using AI or heuristic fallback
  */
 async function gradeExam(examId) {
-  db.prepare("UPDATE student_exams SET status = 'grading' WHERE id = ?").run(examId);
-
-  const answers = db.prepare(`
-    SELECT 
-      ea.id as answer_id,
-      ea.question_id,
-      ea.order_num,
-      ea.student_answer,
-      q.question,
-      q.expected_answer
-    FROM exam_answers ea
-    JOIN questions q ON q.id = ea.question_id
-    WHERE ea.exam_id = ?
-    ORDER BY ea.order_num ASC
-  `).all(examId);
-
-  if (!answers || answers.length === 0) return;
-
-  let gradingResults = null;
-
   try {
-    gradingResults = await callGeminiWithFallback((key) => gradeWithGemini(answers, key));
+    const answers = await dbService.getExamAnswers(examId);
+    if (!answers || answers.length === 0) return;
+
+    let gradingResults = null;
+
+    try {
+      gradingResults = await callGeminiWithFallback((key) => gradeWithGemini(answers, key));
+    } catch (err) {
+      console.warn('[AI] Gemini falhou em todos os planos, aplicando fallback offline:', err.message);
+    }
+
+    if (!gradingResults) {
+      gradingResults = gradeWithHeuristic(answers);
+    }
+
+    await dbService.updateGradingResults(examId, gradingResults);
   } catch (err) {
-    console.warn('[AI] Gemini falhou em todos os planos, aplicando fallback offline:', err.message);
+    console.error(`[AI] Erro no processamento do exame ${examId}:`, err.message);
   }
-
-  if (!gradingResults) {
-    gradingResults = gradeWithHeuristic(answers);
-  }
-
-  const updateAnswerStmt = db.prepare(`
-    UPDATE exam_answers 
-    SET ai_score = ?, ai_feedback = ?, final_score = COALESCE(teacher_score, ?), teacher_feedback = COALESCE(teacher_feedback, ?)
-    WHERE id = ?
-  `);
-
-  let totalScore = 0;
-  for (const res of gradingResults) {
-    const scoreVal = Math.min(10, Math.max(0, parseFloat(res.score) || 0));
-    totalScore += scoreVal;
-    updateAnswerStmt.run(scoreVal, res.feedback, scoreVal, res.feedback, res.answerId);
-  }
-
-  const averageScore = Math.round((totalScore / answers.length) * 10) / 10;
-
-  db.prepare(`
-    UPDATE student_exams 
-    SET status = 'graded', total_score = ?, graded_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).run(averageScore, examId);
 }
 
 /**

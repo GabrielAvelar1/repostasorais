@@ -49,6 +49,13 @@ CREATE TABLE IF NOT EXISTS exam_answers (
   final_score NUMERIC(4, 1) DEFAULT NULL
 );
 
+-- Desativar RLS para permitir que o backend e os alunos façam leituras e gravações
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE questions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE student_exams DISABLE ROW LEVEL SECURITY;
+ALTER TABLE exam_answers DISABLE ROW LEVEL SECURITY;
+
 -- Inserir dados iniciais
 INSERT INTO users (registration, full_name, role)
 VALUES ('12345', 'Patricia', 'teacher')
