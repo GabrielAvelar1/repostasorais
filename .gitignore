@@ -1,0 +1,13 @@
+node_modules/
+database.sqlite
+database.sqlite-wal
+database.sqlite-shm
+.env
+temp_repo/
+paragrafos.json
+perguntas_extraidas.txt
+extract.ps1
+extract_paras.ps1
+parse_questions.js
+build_questions.js
+test_flow.js

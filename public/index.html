@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Prova Oral - Professora Patricia</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">🦷</div>
+        <div>
+          <div>Prova Oral de Odontologia</div>
+          <div style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">Profª. Patricia</div>
+        </div>
+      </div>
+      <div id="header-user-section" class="user-badge" style="display: none;">
+        <div class="user-info">
+          <div id="user-display-name" class="user-name">Aluno</div>
+          <div id="user-display-reg" class="user-reg">Matrícula: -</div>
+        </div>
+        <button id="btn-logout" class="btn-logout">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Areas -->
+  <main class="main-content">
+
+    <!-- 1. LOGIN VIEW -->
+    <section id="view-login" class="card login-card">
+      <div class="login-icon">🎙️</div>
+      <h1 class="login-title">Acesso à Prova Oral</h1>
+      <p class="login-subtitle">Digite sua matrícula e nome completo para iniciar</p>
+      
+      <form id="form-login">
+        <div class="form-group">
+          <label class="form-label" for="login-reg">Matrícula do Aluno</label>
+          <input type="text" id="login-reg" class="form-control" placeholder="Ex: 20261001" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login-name">Nome Completo</label>
+          <input type="text" id="login-name" class="form-control" placeholder="Ex: Maria Eduarda Silva" required autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">
+          Entrar na Avaliação
+        </button>
+      </form>
+
+      <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--border); font-size: 0.85rem; color: var(--text-muted);">
+        Professora? Digite seu Nome: <strong>Patricia</strong> e Matrícula: <strong>12345</strong>
+      </div>
+    </section>
+
+    <!-- 2. WAITING ROOM (Exam Locked by Teacher) -->
+    <section id="view-waiting" class="card waiting-card" style="display: none;">
+      <div class="pulse-spinner">⏳</div>
+      <h2 style="font-size: 1.5rem; margin-bottom: 0.75rem;">Aguardando Liberação da Prova</h2>
+      <p style="color: var(--text-muted); max-width: 480px; margin: 0 auto 1.5rem;">
+        Olá, <strong id="waiting-student-name">Aluno</strong>! A Prova Oral ainda não foi liberada pela <strong>Professora Patricia</strong>.
+      </p>
+      <div style="background: var(--primary-light); color: var(--primary-dark); padding: 0.75rem 1.25rem; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 500; font-size: 0.9rem;">
+        <span style="display: inline-block; width: 10px; height: 10px; background: var(--primary); border-radius: 50%; animation: pulse 1.5s infinite;"></span>
+        Esta tela atualizará automaticamente assim que a prova for liberada.
+      </div>
+      <div style="margin-top: 2rem;">
+        <button id="btn-check-exam-now" class="btn btn-outline btn-sm">Verificar agora</button>
+      </div>
+    </section>
+
+    <!-- 3. EXAM IN PROGRESS VIEW (5 Randomized Questions) -->
+    <section id="view-exam" class="card" style="display: none;">
+      <div class="exam-header">
+        <div>
+          <span class="badge badge-primary">Prova Oral em Andamento</span>
+          <h2 style="font-size: 1.2rem; margin-top: 0.35rem;">Questão <span id="current-q-index">1</span> de 5</h2>
+        </div>
+        <!-- Progress Steps -->
+        <div class="progress-steps" id="progress-steps-container">
+          <!-- Dynamically populated 1..5 buttons -->
+        </div>
+      </div>
+
+      <!-- Question Text -->
+      <div class="question-box">
+        <div class="question-label">Pergunta Sorteada:</div>
+        <div id="question-text" class="question-text">Carregando enunciado...</div>
+      </div>
+
+      <!-- Audio Recording & Live Dictation -->
+      <div class="audio-controls">
+        <div class="audio-btn-row">
+          <button id="btn-toggle-record" class="btn-mic" type="button">
+            <span id="mic-icon">🎤</span>
+            <span id="mic-text">Gravar Resposta por Voz</span>
+          </button>
+          <span id="recording-timer" style="display: none; font-weight: 700; color: var(--danger); font-size: 1.1rem;">
+            00:00
+          </span>
+        </div>
+        <div id="speech-status" class="speech-status">
+          Clique no botão acima e fale sua resposta. Funciona no computador e no celular.
+        </div>
+        <div id="audio-preview-container" style="display: none; margin-top: 0.5rem; width: 100%; text-align: center;">
+          <audio id="audio-preview" controls style="max-width: 320px; height: 36px;"></audio>
+        </div>
+      </div>
+
+      <!-- Text Response Area (Fully Editable by Student) -->
+      <div class="answer-group">
+        <div class="answer-header">
+          <label class="form-label" for="student-answer-input" style="margin-bottom: 0;">
+            Sua Resposta Transcrita:
+          </label>
+          <span class="answer-helper">✍️ Você pode editar e corrigir qualquer palavra</span>
+        </div>
+        <textarea 
+          id="student-answer-input" 
+          class="answer-textarea" 
+          placeholder="O texto falado aparecerá aqui automaticamente. Você também pode digitar, apagar ou corrigir livremente antes de avançar..."
+        ></textarea>
+      </div>
+
+      <!-- Navigation & Save Actions -->
+      <div class="exam-nav">
+        <div>
+          <button id="btn-prev-q" class="btn btn-outline" type="button">
+            ← Questão Anterior
+          </button>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <button id="btn-save-draft" class="btn btn-outline" type="button" title="Salvar progresso atual">
+            💾 Salvar Rascunho
+          </button>
+          <button id="btn-next-q" class="btn btn-primary" type="button">
+            Próxima Questão →
+          </button>
+          <button id="btn-finish-exam" class="btn btn-success" type="button" style="display: none;">
+            ✓ Finalizar e Enviar Prova
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. EXAM SUBMITTED VIEW (Waiting for Grades Release) -->
+    <section id="view-submitted" class="card waiting-card" style="display: none;">
+      <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
+      <h2 style="font-size: 1.6rem; margin-bottom: 0.5rem; color: var(--success);">
+        Prova Oral Enviada com Sucesso!
+      </h2>
+      <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.5rem; font-size: 1rem;">
+        Suas 5 respostas foram gravadas e processadas. A <strong>Professora Patricia</strong> está revisando as correções. As notas e feedbacks serão liberados para toda a turma assim que a avaliação for finalizada.
+      </p>
+      <div style="background: var(--warning-light); color: #92400e; padding: 0.85rem 1.25rem; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+        <span>🔔</span> As notas só aparecerão quando a professora liberar para todos os alunos.
+      </div>
+      <div style="margin-top: 2rem;">
+        <button id="btn-check-grades-now" class="btn btn-primary">
+          Verificar se as Notas Foram Liberadas
+        </button>
+      </div>
+    </section>
+
+    <!-- 5. RESULTS VIEW (Grades Released) -->
+    <section id="view-results" class="card" style="display: none;">
+      <div class="results-score-box">
+        <div class="results-score-label">Sua Nota Final na Prova Oral</div>
+        <div id="results-total-score" class="results-score-value">--</div>
+        <div style="font-size: 0.95rem; opacity: 0.85;">Avaliação de Odontopediatria • Profª. Patricia</div>
+      </div>
+
+      <h3 style="font-size: 1.25rem; margin-bottom: 1.25rem; font-weight: 700;">
+        Espelho de Correção Detalhado:
+      </h3>
+
+      <div id="results-questions-list">
+        <!-- Render each of the 5 questions with student answer, expected answer and feedback -->
+      </div>
+
+      <div style="text-align: center; margin-top: 2rem;">
+        <button class="btn btn-outline" onclick="window.print()">
+          🖨️ Imprimir / Salvar em PDF
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

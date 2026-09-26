@@ -1,0 +1,167 @@
+[
+  {
+    "id": 1,
+    "question": "Defina o ART e explique seus principais princípios?",
+    "expectedAnswer": "O Tratamento Restaurador Atraumático (ART) é uma abordagem de tratamento da cárie dentária baseada na remoção do tecido cariado com instrumentos manuais, seguida da restauração da cavidade, tradicionalmente com cimento de ionômero de vidro. Está associado à filosofia de Odontologia de Mínima Intervenção, buscando preservar a maior quantidade possível de estrutura dental sadia, reduzir o desconforto e evitar procedimentos operatórios desnecessariamente invasivos."
+  },
+  {
+    "id": 2,
+    "question": "Quais são as principais vantagens do ART em crianças?",
+    "expectedAnswer": "Entre as principais vantagens estão:\nmenor necessidade de utilização de instrumentos rotatórios;\nredução de ruído, vibração e desconforto;\nevita o uso de anestésicos;\npreservação de estrutura dental;\nutilização de equipamentos mais simples;\npossibilidade de realização em locais com infraestrutura odontológica limitada;\nutilização de cimento de ionômero de vidro, que apresenta adesão ao tecido dental e liberação de flúor."
+  },
+  {
+    "id": 3,
+    "question": "Descreva as principais etapas clínicas do ART?",
+    "expectedAnswer": "diagnóstico e seleção adequada do caso;\nlimpeza e avaliação do dente;\nisolamento relativo e controle da umidade;\nacesso à lesão, quando necessário;\nremoção seletiva do tecido cariado com instrumentos manuais;\nlimpeza e preparo da cavidade de acordo com o material restaurador;\ncondicionamento da superfície, quando indicado;\ninserção do material restaurador;\nadaptação e acabamento da restauração;\nverificação da oclusão;\norientação ao paciente e acompanhamento clínico."
+  },
+  {
+    "id": 4,
+    "question": "Por que são utilizados instrumentos manuais no ART?",
+    "expectedAnswer": "Os instrumentos manuais permitem a remoção do tecido cariado sem a necessidade de equipamentos rotatórios. Essa característica pode reduzir ruído, vibração e desconforto, sendo especialmente relevante no atendimento de crianças com ansiedade ou dificuldade de cooperação. Além disso, contribui para uma abordagem mais conservadora, com preservação da estrutura dental."
+  },
+  {
+    "id": 5,
+    "question": "Qual material restaurador é tradicionalmente associado ao ART e por que?",
+    "expectedAnswer": "O material tradicionalmente associado ao ART é o cimento de ionômero de vidro (CIV). Sua utilização é favorecida por propriedades como adesão ao esmalte e à dentina, liberação de flúor e possibilidade de utilização em uma abordagem minimamente invasiva. A seleção do CIV deve considerar suas propriedades mecânicas e a indicação clínica."
+  },
+  {
+    "id": 6,
+    "question": "Qual a importância do controle de umidade na técnica do ART?",
+    "expectedAnswer": "O controle da umidade é fundamental para evitar contaminação por saliva ou sangue e garantir condições adequadas para a manipulação e inserção do material restaurador. Embora o CIV apresente tolerância à umidade maior que alguns materiais restauradores, contaminação ou excesso de umidade durante determinadas etapas pode comprometer suas propriedades e o desempenho clínico da restauração."
+  },
+  {
+    "id": 7,
+    "question": "Diferencie ART de uma restauração convencional?",
+    "expectedAnswer": "No ART, a remoção do tecido cariado é realizada predominantemente com instrumentos manuais, buscando preservar estrutura dental e minimizar o uso de equipamentos rotatórios. Na restauração convencional, podem ser empregados instrumentos rotatórios para acesso e preparo da cavidade.\nAlém disso, o ART está inserido em uma filosofia de mínima intervenção, enquanto uma restauração convencional pode envolver um preparo cavitário mais amplo, dependendo da situação clínica e do material utilizado."
+  },
+  {
+    "id": 8,
+    "question": "Explique a remoção seletiva do tecido cariado?",
+    "expectedAnswer": "A remoção seletiva consiste em remover o tecido cariado de maneira criteriosa, evitando a remoção desnecessária de estrutura dental, especialmente nas regiões próximas à polpa. Em lesões profundas, pode-se preservar dentina que não precisa ser removida para controlar a doença, desde que seja possível realizar um selamento adequado da lesão.\nO objetivo é reduzir o risco de exposição pulpar e preservar a vitalidade do dente."
+  },
+  {
+    "id": 9,
+    "question": "Defina o capeamento pulpar indireto?",
+    "expectedAnswer": "O capeamento pulpar indireto é uma terapia conservadora indicada para dentes com lesões de cárie profundas, nos quais a remoção completa do tecido cariado poderia resultar em exposição pulpar. O procedimento busca preservar a vitalidade e a função do tecido pulpar, realizando remoção seletiva do tecido cariado e promovendo o adequado selamento da cavidade."
+  },
+  {
+    "id": 10,
+    "question": "Quais são as principais indicações do capeamento pulpar indireto?",
+    "expectedAnswer": "É indicado principalmente em dentes com:\nlesão de cárie profunda;\npolpa vital ou com condição pulpar compatível com tratamento conservador;\nausência de sinais e sintomas indicativos de comprometimento pulpar irreversível;\nausência de alterações patológicas significativas na região de furca ou periapical;\npossibilidade de realizar adequado selamento da restauração.\nEm dentes decíduos, a indicação deve considerar também a idade do paciente e o tempo esperado de permanência do dente na cavidade bucal."
+  },
+  {
+    "id": 11,
+    "question": "O que deve ser avaliado antes do procedimento Capeamento indireto?",
+    "expectedAnswer": "Clinicamente:\npresença ou ausência de dor espontânea;\ncaracterística e duração da dor provocada;\npresença de fístula, abscesso ou mobilidade patológica;\nintegridade das estruturas dentárias;\npossibilidade de restauração e selamento adequados.\nRadiograficamente:\nprofundidade da lesão;\nproximidade da lesão com a câmara pulpar;\npresença de alterações na região de furca;\nalterações periapicais;\nreabsorções patológicas;\ncondição das estruturas de suporte."
+  },
+  {
+    "id": 12,
+    "question": "Qual a importância do diagnóstico pulpar no Capeamento indireto?",
+    "expectedAnswer": "O diagnóstico pulpar é fundamental para determinar se a polpa apresenta condições de ser preservada.\nO capeamento pulpar indireto é uma terapia conservadora destinada a situações em que a vitalidade pulpar pode ser mantida. Quando existem sinais clínicos ou radiográficos compatíveis com comprometimento pulpar que não favoreça uma terapia conservadora, deve-se considerar outra modalidade de tratamento."
+  },
+  {
+    "id": 13,
+    "question": "Descreva a técnica clínica do Capeamento indireto?",
+    "expectedAnswer": "diagnóstico clínico e radiográfico;\nanestesia local, quando necessária;\nisolamento do campo operatório;\nacesso à lesão;\nremoção do tecido cariado, de forma seletiva;\ncuidado especial na região próxima à polpa;\nlimpeza da cavidade;\nutilização do material de proteção indicado hidróxido de cálcio;\nrestauração e selamento adequado da cavidade;\najuste oclusal;\nacompanhamento clínico e radiográfico."
+  },
+  {
+    "id": 14,
+    "question": "Quais sinais podem contraindicar a técnica do Capeamento indireto?",
+    "expectedAnswer": "dor espontânea persistente;\ndor noturna recorrente;\nfístula;\nabscesso;\nmobilidade patológica;\nalterações radiográficas compatíveis com comprometimento pulpar ou dos tecidos periapicais/interradiculares;\nsinais de necrose ou de condição pulpar incompatível com terapia conservadora."
+  },
+  {
+    "id": 15,
+    "question": "Qual a importância da avaliação radiográfica interproximal para o diagnóstico de cárie dentária em dentes decíduos?",
+    "expectedAnswer": "A radiografia auxilia na avaliação da profundidade da lesão, proximidade da polpa e presença de alterações na região de furca ou periapical.\nNos dentes decíduos, a região de furca merece atenção especial, pois alterações nessa área podem estar relacionadas ao comprometimento pulpar."
+  },
+  {
+    "id": 16,
+    "question": "Quais são as fases do planejamento integral em Odontopediatria?",
+    "expectedAnswer": "Fase de diagnóstico e planejamento: envolve anamnese, avaliação médica e odontológica, exame clínico, exames complementares quando indicados, avaliação do risco de cárie, diagnóstico das alterações presentes e definição das prioridades de tratamento.\nFase de adequação do meio bucal: tem como objetivo controlar os fatores relacionados à doença e preparar a cavidade bucal para os procedimentos definitivos. Inclui controle de biofilme, orientação de higiene e dieta, aplicação de fluoretos quando indicada e tratamento das lesões de cárie ativas ou com risco de progressão.\nFase de tratamento reabilitador/curativo: compreende a realização dos procedimentos necessários para recuperar a saúde, função e, quando necessário, estética. Podem ser realizados procedimentos restauradores, terapias pulpares, exodontias, manutenção de espaço e outros tratamentos conforme as necessidades da criança.\nFase de manutenção e acompanhamento: consiste em consultas periódicas para avaliar a saúde bucal, controlar fatores de risco, verificar a integridade dos tratamentos realizados, acompanhar o desenvolvimento da dentição e reforçar as orientações preventivas."
+  },
+  {
+    "id": 17,
+    "question": "O que é pulpotomia e qual é o seu principal objetivo em dentes decíduos?",
+    "expectedAnswer": "A pulpotomia é um tratamento pulpar realizado em dentes decíduos com comprometimento da polpa coronária, no qual o tecido pulpar coronário é removido, preservando-se a polpa radicular com condições de vitalidade e função. Seu principal objetivo é manter o dente decíduo na cavidade bucal até o período adequado de esfoliação, preservando sua função, espaço para o sucessor permanente e integridade dos tecidos de suporte."
+  },
+  {
+    "id": 18,
+    "question": "Quais são as principais indicações da pulpotomia em dentes decíduos?",
+    "expectedAnswer": "A pulpotomia pode ser indicada quando há exposição pulpar por cárie ou durante o procedimento restaurador, desde que a polpa radicular apresente condições favoráveis de manutenção. É especialmente considerada quando, após a remoção da polpa coronária, não existem sinais clínicos ou radiográficos compatíveis com comprometimento irreversível ou necrose da polpa radicular."
+  },
+  {
+    "id": 19,
+    "question": "Quais condições devem ser avaliadas antes de indicar uma pulpotomia em um dente decíduo?",
+    "expectedAnswer": "Devem ser avaliados o diagnóstico pulpar e periapical, os sinais e sintomas clínicos, a presença ou ausência de dor espontânea ou persistente, mobilidade patológica, abscesso ou fístula, além dos achados radiográficos. Também devem ser consideradas a possibilidade de restauração do dente, a quantidade de estrutura dentária remanescente e o estágio de desenvolvimento e reabsorção radicular."
+  },
+  {
+    "id": 20,
+    "question": "Explique a diferença entre pulpotomia e pulpectomia em dentes decíduos?",
+    "expectedAnswer": "Na pulpotomia, remove-se a polpa coronária, mantendo-se a polpa radicular quando esta apresenta condições de saúde ou possibilidade de recuperação. Na pulpectomia, todo o tecido pulpar, tanto coronário quanto radicular, é removido, sendo indicada quando a polpa radicular apresenta comprometimento irreversível ou necrose e o dente ainda possui indicação de manutenção na cavidade bucal."
+  },
+  {
+    "id": 21,
+    "question": "Por que o controle da hemorragia é importante durante a pulpotomia?",
+    "expectedAnswer": "O controle da hemorragia após a remoção da polpa coronária é importante para auxiliar na avaliação das condições do tecido pulpar remanescente. Uma hemorragia que pode ser controlada adequadamente sugere condições favoráveis para a manutenção da polpa radicular. Já uma hemorragia intensa, persistente ou de difícil controle pode indicar um processo inflamatório mais extenso e levar à reconsideração do diagnóstico e da técnica."
+  },
+  {
+    "id": 22,
+    "question": "Descreva, de maneira geral, as principais etapas clínicas de uma pulpotomia em dente decíduo?",
+    "expectedAnswer": "Inicialmente, realiza-se diagnóstico clínico e radiográfico e planejamento do tratamento. Em seguida, faz-se anestesia, isolamento absoluto, remoção do tecido cariado e acesso à câmara pulpar. A polpa coronária é removida, realiza-se o controle da hemorragia e, posteriormente, coloca-se o material indicado sobre os remanescentes pulpares. Por fim, realiza-se a restauração definitiva, buscando proporcionar bom selamento coronário e proteção do dente."
+  },
+  {
+    "id": 23,
+    "question": "Quais sinais clínicos podem contraindicar a realização de uma pulpotomia em um dente decíduo?",
+    "expectedAnswer": "Entre os sinais que podem contraindicar a pulpotomia estão dor espontânea persistente, história compatível com comprometimento pulpar irreversível, abscesso, fístula, mobilidade patológica e sinais de necrose pulpar. Alterações radiográficas como lesões na região de furca ou periapical, reabsorções patológicas e outras alterações compatíveis com comprometimento pulpar também devem ser consideradas."
+  },
+  {
+    "id": 24,
+    "question": "Qual é a importância do diagnóstico pulpar para o sucesso da pulpotomia?",
+    "expectedAnswer": "O diagnóstico pulpar é fundamental porque a pulpotomia depende da existência de condições favoráveis na polpa radicular remanescente. Quando o diagnóstico é inadequado e o procedimento é realizado em um dente com comprometimento pulpar que exige tratamento diferente, aumenta-se o risco de insucesso, desenvolvimento de alterações periapicais ou na região de furca e necessidade de novo tratamento ou extração."
+  },
+  {
+    "id": 25,
+    "question": "Qual é a finalidade do material colocado sobre a polpa radicular após a amputação da polpa coronária?",
+    "expectedAnswer": "O material tem como finalidade proteger o tecido pulpar remanescente, favorecer condições biológicas adequadas para sua manutenção e proporcionar um selamento que reduza a possibilidade de infiltração e contaminação bacteriana. A escolha do material deve considerar suas propriedades biológicas, físicas e sua evidência clínica."
+  },
+  {
+    "id": 26,
+    "question": "Qual é a importância da restauração definitiva após a realização da pulpotomia?",
+    "expectedAnswer": "A restauração definitiva é fundamental para proporcionar adequado selamento coronário e proteger o remanescente dentário contra infiltração bacteriana, fraturas e novas lesões de cárie. O sucesso da pulpotomia não depende apenas do procedimento pulpar, mas também da qualidade da restauração e da capacidade de manter o dente adequadamente selado e funcional."
+  },
+  {
+    "id": 27,
+    "question": "Qual é o principal objetivo do tratamento endodôntico em dentes decíduos?",
+    "expectedAnswer": "O principal objetivo é controlar a infecção e a inflamação do sistema de canais radiculares, mantendo o dente decíduo em condições funcionais até o momento adequado de sua esfoliação. Dessa forma, busca-se preservar a mastigação, a manutenção do espaço no arco dentário e a integridade dos tecidos de suporte e do sucessor permanente."
+  },
+  {
+    "id": 28,
+    "question": "Quais são as principais indicações para a realização de uma pulpectomia em dentes decíduos?",
+    "expectedAnswer": "A pulpectomia é indicada principalmente em dentes decíduos com comprometimento irreversível ou necrose pulpar, quando o dente apresenta condições de ser restaurado e sua manutenção é desejável. Pode ser indicada diante de sinais e sintomas como dor espontânea ou persistente, necrose, fístula, abscesso ou alterações radiográficas compatíveis com comprometimento pulpar, considerando-se o diagnóstico individual do caso."
+  },
+  {
+    "id": 29,
+    "question": "Diferencie pulpotomia e pulpectomia quanto ao tecido pulpar removido e às suas indicações?",
+    "expectedAnswer": "Na pulpotomia, remove-se a polpa coronária, preservando-se a polpa radicular quando esta apresenta condições favoráveis. Na pulpectomia, remove-se todo o tecido pulpar, tanto coronário quanto radicular. Assim, a pulpectomia é indicada quando existe comprometimento irreversível ou necrose da polpa radicular e o dente ainda apresenta indicação para ser mantido."
+  },
+  {
+    "id": 30,
+    "question": "Quais aspectos clínicos e radiográficos devem ser considerados antes de realizar uma pulpectomia?",
+    "expectedAnswer": "Devem ser avaliados os sinais e sintomas clínicos, o estado pulpar e periapical, a presença de dor, edema, fístula, abscesso e mobilidade patológica. Radiograficamente, devem ser observadas alterações na região de furca ou periapical, reabsorções radiculares patológicas e a relação do dente decíduo com o sucessor permanente. Também devem ser consideradas a possibilidade de restauração do dente e a quantidade de reabsorção radicular fisiológica."
+  },
+  {
+    "id": 31,
+    "question": "Explique a importância do exame radiográfico no planejamento do tratamento endodôntico de dentes decíduos?",
+    "expectedAnswer": "O exame radiográfico auxilia na avaliação da extensão da lesão cariosa, das condições das raízes e do sistema de canais, da presença de alterações na região de furca ou periapical, do grau de reabsorção radicular e da relação com o germe do dente permanente. Essas informações contribuem para o diagnóstico, planejamento e acompanhamento do tratamento."
+  },
+  {
+    "id": 32,
+    "question": "Por que a anatomia dos dentes decíduos deve ser considerada durante o tratamento endodôntico?",
+    "expectedAnswer": "Os dentes decíduos apresentam características anatômicas próprias, como câmaras pulpares relativamente amplas, canais radiculares estreitos, curvos e variáveis, além de raízes que sofrem reabsorção fisiológica. Essas características tornam necessário um planejamento cuidadoso para evitar acidentes, como perfurações, instrumentação excessiva ou danos aos tecidos periapicais e ao germe do sucessor permanente."
+  },
+  {
+    "id": 33,
+    "question": "Quais fatores devem ser considerados para decidir pela manutenção ou extração de um dente decíduo com comprometimento pulpar?",
+    "expectedAnswer": "Devem ser considerados a possibilidade de restaurar o dente, a extensão da destruição coronária, a condição periodontal, o grau de reabsorção radicular, a presença de infecção, o tempo estimado até a esfoliação, a presença e o desenvolvimento do sucessor permanente e a importância do dente para a manutenção do espaço."
+  }
+]

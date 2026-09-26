@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel da Professora Patricia - Provas Orais</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">👩‍🏫</div>
+        <div>
+          <div>Painel da Professora Patricia</div>
+          <div style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">
+            Gestão & Avaliação de Provas Orais
+          </div>
+        </div>
+      </div>
+      <div class="user-badge">
+        <div class="user-info">
+          <div class="user-name">Profª. Patricia</div>
+          <div class="user-reg">Matrícula: 12345 (Acesso Docente)</div>
+        </div>
+        <button id="btn-admin-logout" class="btn-logout">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content" style="max-width: 1200px;">
+
+    <!-- Metrics Grid -->
+    <div class="admin-metrics">
+      <div class="metric-card">
+        <div class="metric-title">Alunos Inscritos</div>
+        <div id="stat-total-students" class="metric-value">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Provas Enviadas</div>
+        <div id="stat-total-submitted" class="metric-value">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Provas Corrigidas</div>
+        <div id="stat-total-graded" class="metric-value">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Média Geral da Turma</div>
+        <div id="stat-avg-score" class="metric-value">--</div>
+      </div>
+    </div>
+
+    <!-- Actions Control Bar -->
+    <div class="admin-actions-bar">
+      <div class="admin-btn-group">
+        <!-- Exam Toggle -->
+        <button id="btn-toggle-exam" class="btn btn-outline" style="border-width: 2px;">
+          <span id="exam-status-dot">⚪</span>
+          <span id="exam-status-text">Carregando status da prova...</span>
+        </button>
+
+        <!-- Grades Release Toggle -->
+        <button id="btn-toggle-grades" class="btn btn-outline" style="border-width: 2px;">
+          <span id="grades-status-dot">🔒</span>
+          <span id="grades-status-text">Carregando liberação de notas...</span>
+        </button>
+      </div>
+
+      <div class="admin-btn-group">
+        <button id="btn-open-settings" class="btn btn-outline">
+          ⚙️ Configurar IA Gratuita
+        </button>
+        <a id="btn-export-csv" href="/api/admin/export-csv" class="btn btn-primary" download>
+          📥 Baixar Planilha de Notas (CSV)
+        </a>
+      </div>
+    </div>
+
+    <!-- Students List Section -->
+    <div class="card" style="padding: 1.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h2 style="font-size: 1.25rem; font-weight: 700;">Lista de Alunos & Provas Orais</h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">
+            Clique em "Revisar / Alterar Nota" para inspecionar as 5 respostas e mudar a nota se desejar.
+          </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <input 
+            type="text" 
+            id="search-student" 
+            class="form-control" 
+            placeholder="Buscar por nome ou matrícula..." 
+            style="width: 260px; padding: 0.5rem 0.75rem; font-size: 0.9rem;"
+          >
+          <button id="btn-refresh-students" class="btn btn-outline btn-sm" title="Atualizar lista">
+            🔄 Atualizar
+          </button>
+        </div>
+      </div>
+
+      <!-- Students Table -->
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Matrícula</th>
+              <th>Nome Completo</th>
+              <th>Status da Prova</th>
+              <th>Nota Final</th>
+              <th>Data de Envio</th>
+              <th style="text-align: right;">Ações da Professora</th>
+            </tr>
+          </thead>
+          <tbody id="students-table-body">
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                Carregando lista de alunos...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: REVIEW STUDENT EXAM & EDIT GRADES -->
+  <div id="modal-review" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 900px;">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-review-student-name" class="modal-title">Revisão de Prova Oral</h3>
+          <div id="modal-review-student-meta" style="font-size: 0.85rem; color: var(--text-muted);">
+            Matrícula: - | Status: -
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeReviewModal()">✕</button>
+      </div>
+
+      <div class="modal-body" id="modal-review-body">
+        <!-- Dynamically rendered 5 questions with editable grades -->
+      </div>
+
+      <div class="modal-footer">
+        <div style="margin-right: auto; display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-weight: 600;">Média Final:</span>
+          <span id="modal-total-score-badge" class="badge badge-primary" style="font-size: 1rem; padding: 0.4rem 0.8rem;">
+            --
+          </span>
+        </div>
+        <button id="btn-regrade-ai" class="btn btn-outline" type="button">
+          🤖 Reavaliar com IA
+        </button>
+        <button class="btn btn-primary" type="button" onclick="closeReviewModal()">
+          Concluir Revisão
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: AI SETTINGS & FREE KEY -->
+  <div id="modal-settings" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ Configurações da IA Gratuita</h3>
+        <button class="modal-close" onclick="closeSettingsModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div style="background: var(--primary-light); color: var(--primary-dark); padding: 1rem; border-radius: 8px; font-size: 0.9rem; margin-bottom: 1.25rem;">
+          <strong>💡 Como funciona a cota gratuita:</strong><br>
+          Para os 30 alunos (5 respostas cada), o sistema consolida as questões em <strong>apenas 30 requisições no dia</strong>. O plano gratuito do Google Gemini AI Studio permite até 1.500 requisições por dia (consumirá apenas 2% do limite diário).
+        </div>
+
+        <form id="form-settings">
+          <div class="form-group">
+            <label class="form-label" for="setting-gemini-key">
+              Chave de API do Google Gemini (Recomendado - Gratuito):
+            </label>
+            <input 
+              type="password" 
+              id="setting-gemini-key" 
+              class="form-control" 
+              placeholder="Cole sua AI Studio API Key aqui (ex: AIzaSy...)"
+            >
+            <div style="margin-top: 0.4rem; font-size: 0.8rem; color: var(--text-muted);">
+              Obtenha gratuitamente sem cartão de crédito em: 
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--primary); font-weight: 600;">
+                Google AI Studio (aistudio.google.com/app/apikey)
+              </a>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setting-groq-key">
+              Chave de API do Groq (Opcional - Llama 3.3 Gratuito):
+            </label>
+            <input 
+              type="password" 
+              id="setting-groq-key" 
+              class="form-control" 
+              placeholder="Chave Groq (opcional)"
+            >
+            <div style="margin-top: 0.4rem; font-size: 0.8rem; color: var(--text-muted);">
+              Disponível em: <a href="https://console.groq.com/keys" target="_blank" style="color: var(--primary);">console.groq.com/keys</a>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setting-exam-title">Título da Prova</label>
+            <input 
+              type="text" 
+              id="setting-exam-title" 
+              class="form-control" 
+              value="Prova Oral de Odontopediatria"
+            >
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+            <button id="btn-test-ai" class="btn btn-outline" type="button">
+              🧪 Testar Conexão da IA
+            </button>
+            <button type="submit" class="btn btn-primary" style="flex: 1;">
+              Salvar Configurações
+            </button>
+          </div>
+        </form>
+
+        <div id="ai-test-result" style="margin-top: 1rem; display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>
