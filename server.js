@@ -37,9 +37,14 @@ app.post('/api/auth/login', async (req, res) => {
     const cleanReg = String(registration).trim();
     const cleanName = String(fullName).trim();
 
-    // Teacher check
-    if (cleanReg === '12345' || (cleanName.toLowerCase() === 'patricia' && cleanReg === '12345')) {
-      const teacher = await dbService.findOrCreateUser('12345', 'Patricia', 'teacher');
+    // Teacher check (Dynamic name & registration with 12345 default fallback)
+    const currentTeacher = await dbService.getTeacherUser();
+    const isTeacher = currentTeacher
+      ? (cleanReg === currentTeacher.registration || (cleanReg === '12345' && cleanName.toLowerCase() === 'patricia'))
+      : (cleanReg === '12345');
+
+    if (isTeacher) {
+      const teacher = currentTeacher || await dbService.findOrCreateUser('12345', 'Patricia', 'teacher');
       return res.json({
         success: true,
         user: {
@@ -261,6 +266,51 @@ function requireTeacher(req, res, next) {
   }
   return res.status(403).json({ error: 'Acesso restrito à Professora Patricia.' });
 }
+
+// Get teacher profile
+app.get('/api/admin/profile', requireTeacher, async (req, res) => {
+  try {
+    const teacher = await dbService.getTeacherUser();
+    res.json({
+      success: true,
+      teacher: {
+        id: teacher.id,
+        fullName: teacher.full_name,
+        registration: teacher.registration
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching teacher profile:', err);
+    res.status(500).json({ error: 'Erro ao carregar perfil docente.' });
+  }
+});
+
+// Update teacher profile (name and registration)
+app.post('/api/admin/profile', requireTeacher, async (req, res) => {
+  try {
+    const { fullName, registration } = req.body;
+    if (!fullName || !registration) {
+      return res.status(400).json({ error: 'Nome e matrícula são obrigatórios.' });
+    }
+
+    const cleanName = String(fullName).trim();
+    const cleanReg = String(registration).trim();
+
+    const updated = await dbService.updateTeacherProfile(cleanName, cleanReg);
+    res.json({
+      success: true,
+      message: 'Nome e matrícula atualizados com sucesso!',
+      teacher: {
+        id: updated.id,
+        fullName: updated.full_name,
+        registration: updated.registration
+      }
+    });
+  } catch (err) {
+    console.error('Error updating teacher profile:', err);
+    res.status(500).json({ error: 'Erro ao atualizar dados da professora.' });
+  }
+});
 
 // Toggle exam open/closed
 app.post('/api/admin/toggle-exam', requireTeacher, async (req, res) => {

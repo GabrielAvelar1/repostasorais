@@ -69,6 +69,25 @@ async function findOrCreateUser(registration, fullName, role = 'student') {
   return user;
 }
 
+async function getTeacherUser() {
+  const { data } = await supabase.from('users').select('*').eq('role', 'teacher').maybeSingle();
+  if (data) return data;
+  return await findOrCreateUser('12345', 'Patricia', 'teacher');
+}
+
+async function updateTeacherProfile(fullName, registration) {
+  const teacher = await getTeacherUser();
+  const { data, error } = await supabase
+    .from('users')
+    .update({ full_name: fullName, registration: registration })
+    .eq('id', teacher.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 /**
  * Questions
  */
@@ -501,5 +520,7 @@ module.exports = {
   resetStudentExam,
   deleteStudent,
   getDetailedExamExportData,
-  resetEntireSystem
+  resetEntireSystem,
+  getTeacherUser,
+  updateTeacherProfile
 };

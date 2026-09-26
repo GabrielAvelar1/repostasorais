@@ -61,9 +61,22 @@ function checkAdminAuth() {
     return;
   }
   currentUser = JSON.parse(saved);
-  if (currentUser.role !== 'teacher' && currentUser.registration !== '12345') {
-    alert('Acesso restrito à Professora Patricia.');
+  if (currentUser.role !== 'teacher') {
+    alert('Acesso restrito à Professora.');
     window.location.href = '/index.html';
+    return;
+  }
+  updateTeacherHeaderUI();
+}
+
+function updateTeacherHeaderUI() {
+  const headerName = document.getElementById('header-teacher-name');
+  const headerReg = document.getElementById('header-teacher-reg');
+  if (headerName && currentUser && currentUser.fullName) {
+    headerName.textContent = currentUser.fullName;
+  }
+  if (headerReg && currentUser && currentUser.registration) {
+    headerReg.textContent = `Matrícula: ${currentUser.registration} (Acesso Docente)`;
   }
 }
 
@@ -272,6 +285,50 @@ function setupAdminEvents() {
       }
     });
   }
+
+  // Edit Teacher Profile Trigger
+  const btnEditProfile = document.getElementById('btn-edit-profile');
+  const modalProfile = document.getElementById('modal-profile');
+  const formProfile = document.getElementById('form-teacher-profile');
+  const profileNameInput = document.getElementById('profile-name');
+  const profileRegInput = document.getElementById('profile-reg');
+
+  if (btnEditProfile) {
+    btnEditProfile.addEventListener('click', () => {
+      if (profileNameInput && currentUser) profileNameInput.value = currentUser.fullName || 'Patricia';
+      if (profileRegInput && currentUser) profileRegInput.value = currentUser.registration || '12345';
+      if (modalProfile) modalProfile.style.display = 'flex';
+    });
+  }
+
+  if (formProfile) {
+    formProfile.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newName = profileNameInput.value.trim();
+      const newReg = profileRegInput.value.trim();
+      if (!newName || !newReg) return;
+
+      try {
+        const res = await fetch('/api/admin/profile', {
+          method: 'POST',
+          headers: getAdminHeaders(),
+          body: JSON.stringify({ fullName: newName, registration: newReg })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        currentUser.fullName = data.teacher.fullName;
+        currentUser.registration = data.teacher.registration;
+        localStorage.setItem('oral_exam_user', JSON.stringify(currentUser));
+
+        updateTeacherHeaderUI();
+        closeProfileModal();
+        showToast('✅ Nome e matrícula de acesso alterados com sucesso!');
+      } catch (err) {
+        alert(err.message || 'Erro ao atualizar dados.');
+      }
+    });
+  }
 }
 
 function closeExportModal() {
@@ -279,6 +336,12 @@ function closeExportModal() {
   if (modal) modal.style.display = 'none';
 }
 window.closeExportModal = closeExportModal;
+
+function closeProfileModal() {
+  const modal = document.getElementById('modal-profile');
+  if (modal) modal.style.display = 'none';
+}
+window.closeProfileModal = closeProfileModal;
 
 // -------------------------------------------------------------
 // LOAD DASHBOARD STATS
