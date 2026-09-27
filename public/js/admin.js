@@ -309,26 +309,29 @@ function setupAdminEvents() {
     });
   }
 
-  // Approve Pair / Trio Button Trigger
+  // Approve Individual / Pair / Trio Button Trigger
   if (btnApprovePair) {
     btnApprovePair.addEventListener('click', async () => {
       const count = selectedWaitingStudentIds.length;
-      if (count < 2) {
-        showToast('⚠️ Selecione pelo menos 2 alunos (dupla ou trio) para iniciar a prova.');
+      if (count < 1) {
+        showToast('⚠️ Selecione pelo menos 1 aluno para iniciar a prova.');
         return;
       }
 
-      let groupType = 'dupla';
-      if (count === 3) groupType = 'trio';
+      let groupType = 'aluno individual';
+      if (count === 2) groupType = 'dupla';
+      else if (count === 3) groupType = 'trio';
       else if (count > 3) groupType = `grupo de ${count} alunos`;
 
-      const confirmMsg = `Deseja autorizar este ${groupType} e sortear as 5 questões idênticas para todos eles?`;
+      const confirmMsg = count === 1
+        ? 'Deseja autorizar este aluno para fazer a prova individualmente com 5 questões?'
+        : `Deseja autorizar este ${groupType} e sortear as 5 questões idênticas para todos eles?`;
 
       if (!confirm(confirmMsg)) return;
 
       try {
         btnApprovePair.disabled = true;
-        btnApprovePair.textContent = `Autorizando ${groupType}...`;
+        btnApprovePair.textContent = count === 1 ? 'Autorizando prova individual...' : `Autorizando ${groupType}...`;
 
         const res = await fetch('/api/admin/approve-pair', {
           method: 'POST',
@@ -338,13 +341,17 @@ function setupAdminEvents() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
-        showToast(`🎉 ${groupType.charAt(0).toUpperCase() + groupType.slice(1)} autorizada com sucesso! As 5 questões idênticas foram sorteadas.`);
+        const successMsg = count === 1
+          ? '🎉 Prova individual autorizada com sucesso! As 5 questões foram sorteadas.'
+          : `🎉 ${groupType.charAt(0).toUpperCase() + groupType.slice(1)} autorizada com sucesso! As 5 questões idênticas foram sorteadas.`;
+
+        showToast(successMsg);
         selectedWaitingStudentIds = [];
         loadWaitingStudents();
         loadStudents();
         loadDashboardData();
       } catch (err) {
-        alert(err.message || 'Erro ao autorizar alunos.');
+        alert(err.message || 'Erro ao autorizar aluno(s).');
       } finally {
         btnApprovePair.disabled = false;
         updateSelectedPairUI();
@@ -481,7 +488,7 @@ function renderWaitingQueue() {
   if (waitingStudentsList.length === 0) {
     waitingQueueContainer.innerHTML = `
       <div style="color: var(--text-muted); font-size: 0.9rem; padding: 1.25rem; text-align: center; grid-column: 1 / -1; background: #f8fafc; border-radius: 8px;">
-        ✨ Nenhum aluno aguardando autorização no momento. Quando os alunos entrarem no sistema, eles aparecerão aqui para você formar a dupla ou trio.
+        ✨ Nenhum aluno aguardando autorização no momento. Quando os alunos entrarem no sistema, eles aparecerão aqui para você autorizar (individual, dupla ou trio).
       </div>
     `;
     return;
@@ -546,9 +553,9 @@ function updateSelectedPairUI() {
   const count = selectedWaitingStudentIds.length;
   if (selectedPairCounter) {
     if (count === 0) {
-      selectedPairCounter.textContent = 'Selecionados: 0 (mínimo 2 alunos)';
+      selectedPairCounter.textContent = 'Selecionados: 0';
     } else if (count === 1) {
-      selectedPairCounter.textContent = 'Selecionado: 1 aluno (selecione mais 1 ou 2)';
+      selectedPairCounter.textContent = 'Selecionado: 1 aluno (Individual)';
     } else if (count === 2) {
       selectedPairCounter.textContent = 'Selecionados: 2 alunos (Dupla)';
     } else if (count === 3) {
@@ -558,15 +565,17 @@ function updateSelectedPairUI() {
     }
   }
   if (btnApprovePair) {
-    btnApprovePair.disabled = count < 2;
-    if (count === 2) {
+    btnApprovePair.disabled = count < 1;
+    if (count === 1) {
+      btnApprovePair.textContent = '✨ Aprovar Aluno (Individual) e Iniciar Prova';
+    } else if (count === 2) {
       btnApprovePair.textContent = '✨ Aprovar Dupla e Iniciar Prova';
     } else if (count === 3) {
       btnApprovePair.textContent = '✨ Aprovar Trio e Iniciar Prova';
     } else if (count > 3) {
       btnApprovePair.textContent = `✨ Aprovar Grupo (${count}) e Iniciar Prova`;
     } else {
-      btnApprovePair.textContent = '✨ Aprovar Dupla / Trio e Iniciar Prova';
+      btnApprovePair.textContent = '✨ Autorizar Prova';
     }
   }
 }
