@@ -807,6 +807,8 @@ function closeTcleProofModal() {
 window.closeTcleProofModal = closeTcleProofModal;
 
 function printTcleCertificate() {
+  const body = document.getElementById('modal-tcle-body');
+  if (body) body.scrollTop = 0;
   window.print();
 }
 window.printTcleCertificate = printTcleCertificate;

@@ -864,33 +864,100 @@ body {
   }
 }
 
-/* TCLE Certificate Print Styling */
+/* TCLE Certificate Print Styling - Single Page Output */
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
   }
-  #modal-tcle-proof,
-  #modal-tcle-proof * {
-    visibility: visible;
-  }
-  #modal-tcle-proof {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: auto;
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
     background: #ffffff !important;
-    display: block !important;
-    padding: 0;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  #modal-tcle-proof .modal-close,
-  #modal-tcle-proof .modal-footer,
-  #btn-print-tcle {
+
+  /* Completely remove all page content except the TCLE modal */
+  body > *:not(#modal-tcle-proof) {
     display: none !important;
   }
-  #modal-tcle-proof .modal-content {
-    box-shadow: none !important;
-    border: 2px solid #000 !important;
+
+  .app-header,
+  .main-content,
+  #modal-review,
+  #modal-export,
+  #modal-profile,
+  .toast,
+  .modal-close,
+  .modal-footer,
+  #btn-print-tcle,
+  #modal-tcle-proof .modal-header,
+  #modal-tcle-proof .modal-footer {
+    display: none !important;
+  }
+
+  #modal-tcle-proof {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
     max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #modal-tcle-proof .modal-content {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #modal-tcle-body {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #modal-tcle-body > div {
+    border: 1.5px solid #16a34a !important;
+    padding: 1.25rem !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
