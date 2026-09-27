@@ -504,35 +504,71 @@ async function getWaitingStudentsList() {
 }
 
 /**
- * Save digital TCLE consent for a student
+ * Save digital TCLE consent for a student (with automatic user recovery)
  */
-async function saveTcleConsent(userId, accepted) {
+async function saveTcleConsent(userId, accepted, studentData = {}) {
+  let user = null;
+  const numId = parseInt(userId);
+
+  if (!isNaN(numId)) {
+    user = await getUserById(numId);
+  }
+
+  // If not found by ID, try finding by registration if provided
+  if (!user && studentData.registration) {
+    user = await getUserByRegistration(String(studentData.registration).trim());
+  }
+
+  // If still not found and we have registration & fullName, re-create user
+  if (!user && studentData.registration && studentData.fullName) {
+    user = await findOrCreateUser(
+      String(studentData.registration).trim(),
+      String(studentData.fullName).trim(),
+      'student'
+    );
+  }
+
   const raw = await getSetting('tcle_consents', '{}');
   let consents = {};
   try { consents = JSON.parse(raw); } catch (e) { consents = {}; }
 
-  const user = await getUserById(userId);
-  if (!user) throw new Error('Usuário não encontrado.');
+  const finalId = user ? user.id : (numId || userId || 'unknown');
+  const reg = user ? user.registration : (studentData.registration || '');
+  const name = user ? user.full_name : (studentData.fullName || 'Aluno');
 
-  consents[userId] = {
+  const consentRecord = {
     accepted: !!accepted,
     acceptedAt: new Date().toISOString(),
-    registration: user.registration,
-    fullName: user.full_name
+    userId: finalId,
+    registration: reg,
+    fullName: name
   };
 
+  // Key by both finalId and registration for maximum resilience
+  consents[finalId] = consentRecord;
+  if (reg) {
+    consents[reg] = consentRecord;
+  }
+
   await setSetting('tcle_consents', JSON.stringify(consents));
-  return consents[userId];
+  return { consentRecord, user };
 }
 
 /**
  * Check if a student has accepted the digital TCLE consent
  */
-async function hasUserAcceptedTcle(userId) {
+async function hasUserAcceptedTcle(userId, registration = null) {
   const raw = await getSetting('tcle_consents', '{}');
   let consents = {};
   try { consents = JSON.parse(raw); } catch (e) { consents = {}; }
-  return !!(consents[userId] && consents[userId].accepted);
+
+  if (consents[userId] && consents[userId].accepted) return true;
+  if (registration && consents[registration] && consents[registration].accepted) return true;
+
+  const numId = parseInt(userId);
+  if (!isNaN(numId) && consents[numId] && consents[numId].accepted) return true;
+
+  return false;
 }
 
 async function getDashboardStats() {

@@ -81,15 +81,18 @@ app.post('/api/auth/login', async (req, res) => {
 // -------------------------------------------------------------
 app.post('/api/auth/tcle-consent', async (req, res) => {
   try {
-    const { userId, accepted } = req.body;
-    if (!userId) return res.status(400).json({ error: 'ID do usuário não fornecido.' });
+    const { userId, registration, fullName, accepted } = req.body;
     if (!accepted) return res.status(400).json({ error: 'Consentimento não concedido.' });
 
-    const consent = await dbService.saveTcleConsent(userId, true);
-    res.json({ success: true, consent });
+    const result = await dbService.saveTcleConsent(userId, true, { registration, fullName });
+    res.json({
+      success: true,
+      consent: result.consentRecord,
+      user: result.user
+    });
   } catch (err) {
     console.error('Error saving TCLE consent:', err);
-    res.status(500).json({ error: 'Erro ao registrar consentimento do TCLE.' });
+    res.status(500).json({ error: err.message || 'Erro ao registrar consentimento do TCLE.' });
   }
 });
 

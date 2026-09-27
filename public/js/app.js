@@ -304,16 +304,34 @@ function setupEventListeners() {
       btnTcleSubmit.textContent = 'Gravando consentimento...';
 
       try {
+        const payload = {
+          userId: currentUser?.id,
+          registration: currentUser?.registration,
+          fullName: currentUser?.fullName,
+          accepted: true
+        };
+
         const res = await fetch('/api/auth/tcle-consent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id, accepted: true })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao registrar consentimento.');
 
-        currentUser.tcleAccepted = true;
+        if (data.user) {
+          currentUser = {
+            id: data.user.id,
+            registration: data.user.registration,
+            fullName: data.user.full_name || data.user.fullName,
+            role: data.user.role || 'student',
+            tcleAccepted: true
+          };
+        } else {
+          currentUser.tcleAccepted = true;
+        }
         localStorage.setItem('oral_exam_user', JSON.stringify(currentUser));
+        renderUserHeader();
 
         showToast('✅ Termo de Consentimento aceito com sucesso!');
         loadStudentFlow();
@@ -510,8 +528,18 @@ async function loadStudentFlow() {
       return;
     }
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Erro ao carregar prova');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 404) {
+        localStorage.removeItem('oral_exam_user');
+        currentUser = null;
+        renderUserHeader();
+        showView(viewLogin);
+        showToast('Sessão reiniciada. Por favor, entre novamente com sua matrícula.');
+        return;
+      }
+      throw new Error(data.error || 'Erro ao carregar prova');
+    }
 
     currentExam = data.exam;
     questions = data.questions || [];
