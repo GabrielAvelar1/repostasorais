@@ -367,26 +367,27 @@ app.get('/api/admin/waiting-students', requireTeacher, async (req, res) => {
   }
 });
 
-// Approve pair of students and draw identical 5 questions
+// Approve pair or trio of students and draw identical 5 questions
 app.post('/api/admin/approve-pair', requireTeacher, async (req, res) => {
   try {
     const { studentIds } = req.body;
-    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
-      return res.status(400).json({ error: 'Selecione ao menos 1 aluno para iniciar a prova.' });
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length < 2) {
+      return res.status(400).json({ error: 'Selecione ao menos 2 alunos (dupla ou trio) para iniciar a prova.' });
     }
-    if (studentIds.length > 2) {
-      return res.status(400).json({ error: 'A prova em dupla permite autorizar no máximo 2 alunos por vez.' });
+    if (studentIds.length > 5) {
+      return res.status(400).json({ error: 'Você pode autorizar no máximo 5 alunos por grupo.' });
     }
 
     const result = await dbService.createPairExams(studentIds);
+    const label = studentIds.length === 2 ? 'Dupla' : (studentIds.length === 3 ? 'Trio' : 'Grupo');
     res.json({
       success: true,
-      message: 'Dupla autorizada com sucesso! As 5 questões idênticas foram sorteadas e disponibilizadas.',
+      message: `${label} autorizada com sucesso! As 5 questões idênticas foram sorteadas e disponibilizadas.`,
       result
     });
   } catch (err) {
-    console.error('Error approving pair:', err);
-    res.status(500).json({ error: err.message || 'Erro ao autorizar dupla.' });
+    console.error('Error approving pair/trio:', err);
+    res.status(500).json({ error: err.message || 'Erro ao autorizar alunos.' });
   }
 });
 

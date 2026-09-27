@@ -123,20 +123,22 @@ function setupAdminEvents() {
     }
   });
 
-  // Toggle Exam Open/Closed
-  btnToggleExam.addEventListener('click', async () => {
-    try {
-      const res = await fetch('/api/admin/toggle-exam', {
-        method: 'POST',
-        headers: getAdminHeaders()
-      });
-      const data = await res.json();
-      updateExamStatusUI(data.examOpen);
-      showToast(data.examOpen ? '🟢 Prova LIBERADA para os alunos!' : '🔴 Prova BLOQUEADA para os alunos.');
-    } catch (e) {
-      alert('Erro ao alterar status da prova.');
-    }
-  });
+  // Toggle Exam Open/Closed (if button exists)
+  if (btnToggleExam) {
+    btnToggleExam.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/admin/toggle-exam', {
+          method: 'POST',
+          headers: getAdminHeaders()
+        });
+        const data = await res.json();
+        updateExamStatusUI(data.examOpen);
+        showToast(data.examOpen ? '🟢 Prova LIBERADA para os alunos!' : '🔴 Prova BLOQUEADA para os alunos.');
+      } catch (e) {
+        alert('Erro ao alterar status da prova.');
+      }
+    });
+  }
 
   // Toggle Grades Release
   btnToggleGrades.addEventListener('click', async () => {
@@ -307,21 +309,26 @@ function setupAdminEvents() {
     });
   }
 
-  // Approve Pair Button Trigger
+  // Approve Pair / Trio Button Trigger
   if (btnApprovePair) {
     btnApprovePair.addEventListener('click', async () => {
-      if (selectedWaitingStudentIds.length === 0) return;
-
       const count = selectedWaitingStudentIds.length;
-      const confirmMsg = count === 2
-        ? 'Deseja autorizar esta dupla e sortear as 5 questões idênticas para ambos?'
-        : 'Deseja autorizar este aluno individualmente com 5 questões?';
+      if (count < 2) {
+        showToast('⚠️ Selecione pelo menos 2 alunos (dupla ou trio) para iniciar a prova.');
+        return;
+      }
+
+      let groupType = 'dupla';
+      if (count === 3) groupType = 'trio';
+      else if (count > 3) groupType = `grupo de ${count} alunos`;
+
+      const confirmMsg = `Deseja autorizar este ${groupType} e sortear as 5 questões idênticas para todos eles?`;
 
       if (!confirm(confirmMsg)) return;
 
       try {
         btnApprovePair.disabled = true;
-        btnApprovePair.textContent = 'Autorizando dupla...';
+        btnApprovePair.textContent = `Autorizando ${groupType}...`;
 
         const res = await fetch('/api/admin/approve-pair', {
           method: 'POST',
@@ -331,16 +338,16 @@ function setupAdminEvents() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
-        showToast('🎉 Dupla autorizada com sucesso! As 5 questões idênticas foram sorteadas.');
+        showToast(`🎉 ${groupType.charAt(0).toUpperCase() + groupType.slice(1)} autorizada com sucesso! As 5 questões idênticas foram sorteadas.`);
         selectedWaitingStudentIds = [];
         loadWaitingStudents();
         loadStudents();
         loadDashboardData();
       } catch (err) {
-        alert(err.message || 'Erro ao autorizar dupla.');
+        alert(err.message || 'Erro ao autorizar alunos.');
       } finally {
         btnApprovePair.disabled = false;
-        btnApprovePair.textContent = '✨ Aprovar Dupla e Iniciar Prova';
+        updateSelectedPairUI();
       }
     });
   }
@@ -423,6 +430,7 @@ async function loadDashboardData() {
 }
 
 function updateExamStatusUI(isOpen) {
+  if (!btnToggleExam || !examStatusDot || !examStatusText) return;
   if (isOpen) {
     btnToggleExam.style.borderColor = 'var(--success)';
     examStatusDot.textContent = '🟢';
@@ -473,7 +481,7 @@ function renderWaitingQueue() {
   if (waitingStudentsList.length === 0) {
     waitingQueueContainer.innerHTML = `
       <div style="color: var(--text-muted); font-size: 0.9rem; padding: 1.25rem; text-align: center; grid-column: 1 / -1; background: #f8fafc; border-radius: 8px;">
-        ✨ Nenhum aluno aguardando autorização no momento. Quando um aluno entrar no sistema, ele aparecerá aqui para você formar a dupla.
+        ✨ Nenhum aluno aguardando autorização no momento. Quando os alunos entrarem no sistema, eles aparecerão aqui para você formar a dupla ou trio.
       </div>
     `;
     return;
@@ -524,8 +532,8 @@ function toggleSelectWaitingStudent(userId) {
   if (index > -1) {
     selectedWaitingStudentIds.splice(index, 1);
   } else {
-    if (selectedWaitingStudentIds.length >= 2) {
-      showToast('Apenas 2 alunos podem ser selecionados para a dupla.');
+    if (selectedWaitingStudentIds.length >= 5) {
+      showToast('⚠️ Você pode selecionar no máximo 5 alunos por grupo.');
       return;
     }
     selectedWaitingStudentIds.push(userId);
@@ -535,11 +543,31 @@ function toggleSelectWaitingStudent(userId) {
 window.toggleSelectWaitingStudent = toggleSelectWaitingStudent;
 
 function updateSelectedPairUI() {
+  const count = selectedWaitingStudentIds.length;
   if (selectedPairCounter) {
-    selectedPairCounter.textContent = `Selecionados: ${selectedWaitingStudentIds.length}/2`;
+    if (count === 0) {
+      selectedPairCounter.textContent = 'Selecionados: 0 (mínimo 2 alunos)';
+    } else if (count === 1) {
+      selectedPairCounter.textContent = 'Selecionado: 1 aluno (selecione mais 1 ou 2)';
+    } else if (count === 2) {
+      selectedPairCounter.textContent = 'Selecionados: 2 alunos (Dupla)';
+    } else if (count === 3) {
+      selectedPairCounter.textContent = 'Selecionados: 3 alunos (Trio)';
+    } else {
+      selectedPairCounter.textContent = `Selecionados: ${count} alunos (Grupo)`;
+    }
   }
   if (btnApprovePair) {
-    btnApprovePair.disabled = selectedWaitingStudentIds.length === 0;
+    btnApprovePair.disabled = count < 2;
+    if (count === 2) {
+      btnApprovePair.textContent = '✨ Aprovar Dupla e Iniciar Prova';
+    } else if (count === 3) {
+      btnApprovePair.textContent = '✨ Aprovar Trio e Iniciar Prova';
+    } else if (count > 3) {
+      btnApprovePair.textContent = `✨ Aprovar Grupo (${count}) e Iniciar Prova`;
+    } else {
+      btnApprovePair.textContent = '✨ Aprovar Dupla / Trio e Iniciar Prova';
+    }
   }
 }
 

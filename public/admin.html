@@ -61,12 +61,6 @@
     <!-- Actions Control Bar -->
     <div class="admin-actions-bar">
       <div class="admin-btn-group">
-        <!-- Exam Toggle -->
-        <button id="btn-toggle-exam" class="btn btn-outline" style="border-width: 2px;">
-          <span id="exam-status-dot">⚪</span>
-          <span id="exam-status-text">Carregando status da prova...</span>
-        </button>
-
         <!-- Grades Release Toggle -->
         <button id="btn-toggle-grades" class="btn btn-outline" style="border-width: 2px;">
           <span id="grades-status-dot">🔒</span>
@@ -87,24 +81,24 @@
       </div>
     </div>
 
-    <!-- Pair Queue / Fila de Espera Section -->
+    <!-- Pair / Trio Queue / Fila de Espera Section -->
     <div class="card" style="padding: 1.5rem; margin-bottom: 1.5rem; border: 2px solid #e2e8f0; background: #ffffff;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
         <div>
           <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--primary-dark);">👥 Fila de Espera & Liberação de Duplas</h2>
+            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--primary-dark);">👥 Fila de Espera & Liberação de Provas (Duplas e Trios)</h2>
             <span id="badge-waiting-count" class="badge badge-warning" style="font-size: 0.85rem; padding: 0.25rem 0.6rem;">0 aguardando</span>
           </div>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
-            Selecione <strong>2 alunos</strong> na fila abaixo para autorizar a realização da prova oral. As <strong>5 mesmas questões</strong> serão sorteadas para a dupla.
+            Selecione <strong>2 ou 3 alunos</strong> (duplas ou trios) na fila abaixo para autorizar a realização da prova oral. As <strong>5 mesmas questões</strong> serão sorteadas para o grupo.
           </p>
         </div>
         <div style="display: flex; gap: 0.75rem; align-items: center;">
           <span id="selected-pair-counter" style="font-size: 0.9rem; font-weight: 600; color: #475569;">
-            Selecionados: 0/2
+            Selecionados: 0 (mínimo 2 alunos)
           </span>
           <button id="btn-approve-pair" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.4rem;" disabled>
-            ✨ Aprovar Dupla e Iniciar Prova
+            ✨ Aprovar Dupla / Trio e Iniciar Prova
           </button>
         </div>
       </div>
