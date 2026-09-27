@@ -58,6 +58,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Student find or create
     const student = await dbService.findOrCreateUser(cleanReg, cleanName, 'student');
+    const tcleAccepted = await dbService.hasUserAcceptedTcle(student.id);
 
     return res.json({
       success: true,
@@ -65,12 +66,42 @@ app.post('/api/auth/login', async (req, res) => {
         id: student.id,
         registration: student.registration,
         fullName: student.full_name,
-        role: student.role
+        role: student.role,
+        tcleAccepted
       }
     });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Erro ao autenticar no banco de dados Supabase.' });
+  }
+});
+
+// -------------------------------------------------------------
+// TCLE CONSENT ENDPOINTS
+// -------------------------------------------------------------
+app.post('/api/auth/tcle-consent', async (req, res) => {
+  try {
+    const { userId, accepted } = req.body;
+    if (!userId) return res.status(400).json({ error: 'ID do usuário não fornecido.' });
+    if (!accepted) return res.status(400).json({ error: 'Consentimento não concedido.' });
+
+    const consent = await dbService.saveTcleConsent(userId, true);
+    res.json({ success: true, consent });
+  } catch (err) {
+    console.error('Error saving TCLE consent:', err);
+    res.status(500).json({ error: 'Erro ao registrar consentimento do TCLE.' });
+  }
+});
+
+app.get('/api/auth/tcle-status', async (req, res) => {
+  try {
+    const userId = parseInt(req.query.userId || req.headers['x-user-id']);
+    if (!userId) return res.status(400).json({ error: 'ID do usuário não fornecido.' });
+
+    const accepted = await dbService.hasUserAcceptedTcle(userId);
+    res.json({ accepted });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao verificar consentimento.' });
   }
 });
 
@@ -100,16 +131,26 @@ app.get('/api/exam/my-exam', async (req, res) => {
     const user = await dbService.getUserById(userId);
     if (!user) return res.status(404).json({ error: 'Aluno não encontrado.' });
 
+    // Check if student accepted TCLE
+    const hasConsent = await dbService.hasUserAcceptedTcle(userId);
+    if (!hasConsent) {
+      return res.status(403).json({
+        locked: true,
+        needsTcle: true,
+        message: 'É necessário manifestar concordância com o TCLE antes de acessar a prova.'
+      });
+    }
+
     const isExamOpen = (await dbService.getSetting('exam_open')) === '1';
 
     let exam = await dbService.getStudentExam(userId);
 
-    // If student has not been approved in a pair by the teacher yet, keep in waiting room
+    // If student has not been approved by the teacher yet, keep in waiting room
     if (!exam) {
       return res.status(403).json({
         locked: true,
         waitingApproval: true,
-        message: 'Aguardando a Professora Patricia autorizar sua dupla para iniciar a prova oral.'
+        message: 'Aguardando a Professora Patricia autorizar o início da sua prova oral.'
       });
     }
 

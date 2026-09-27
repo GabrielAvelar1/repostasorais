@@ -55,7 +55,94 @@
       </form>
     </section>
 
-    <!-- 2. WAITING ROOM (Waiting for Pair/Trio Approval by Teacher) -->
+    <!-- 2. TCLE CONSENT VIEW (Termo de Consentimento Livre e Esclarecido) -->
+    <section id="view-tcle" class="card" style="display: none; max-width: 820px; margin: 0 auto; text-align: left; padding: 2rem;">
+      <div style="text-align: center; border-bottom: 2px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.5rem;">
+        <span style="font-size: 2.2rem; display: block; margin-bottom: 0.5rem;">📜</span>
+        <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--primary-dark); text-transform: uppercase; letter-spacing: 0.5px;">
+          TERMO DE CONSENTIMENTO LIVRE E ESCLARECIDO (TCLE)
+        </h2>
+        <p style="font-size: 0.95rem; color: #475569; margin-top: 0.35rem; font-weight: 500;">
+          Disciplina: Estágio em Clínica Odontológica Integrada Infantil I &bull; Profª. Patricia Drummond
+        </p>
+      </div>
+
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.6; color: #334155; max-height: 380px; overflow-y: auto;">
+        <p style="margin-bottom: 1rem;">
+          Você está sendo convidado(a) a participar da avaliação oral da disciplina <strong>Estágio em Clínica odontológica integrada infantil I</strong>, sob a responsabilidade do(a) professor(a)/avaliador(a) <strong>Patricia Drummond</strong>. Por favor, leia atentamente as informações abaixo antes de manifestar seu consentimento.
+        </p>
+
+        <h4 style="font-weight: 700; color: var(--primary-dark); margin: 1rem 0 0.35rem 0;">1. OBJETIVO E PROCEDIMENTOS</h4>
+        <p style="margin-bottom: 1rem;">
+          Esta avaliação tem como objetivo aferir seus conhecimentos de forma oral. Para fins de otimização, padronização e agilidade na correção, utilizaremos uma ferramenta de Inteligência Artificial (IA) auxiliar. A sua apresentação será gravada em áudio. O arquivo gerado será processado pela IA para analisar critérios como coerência, vocabulário técnico, estrutura das respostas ou tempo de fala.
+        </p>
+
+        <h4 style="font-weight: 700; color: var(--primary-dark); margin: 1rem 0 0.35rem 0;">2. SUPERVISÃO HUMANA E DIREITO A RECURSO</h4>
+        <p style="margin-bottom: 1rem;">
+          Garantimos que a Inteligência Artificial atua estritamente como ferramenta de apoio. A nota final não será decidida exclusivamente de forma automatizada. Todas as análises e pontuações sugeridas pelo sistema passarão por uma validação e revisão humana qualificada efetuada pelo professor responsável. Caso você discorde do resultado, terá o direito assegurado de solicitar uma revisão manual da gravação por meio do mecanismo de recurso oficial da instituição.
+        </p>
+
+        <h4 style="font-weight: 700; color: var(--primary-dark); margin: 1rem 0 0.35rem 0;">3. RISCOS, PRIVACIDADE E PROTEÇÃO DE DADOS (LGPD)</h4>
+        <p style="margin-bottom: 1rem;">
+          Os riscos desta modalidade são considerados mínimos e equivalentes aos de uma exposição oral comum. Seus dados de voz, imagem e desempenho acadêmico serão tratados sob estrito sigilo. Os arquivos de áudio/vídeo serão armazenados em ambiente seguro, utilizados apenas para esta finalidade avaliativa e descartados de forma definitiva após o encerramento do período letivo. Seus dados jamais serão utilizados para treinamento comercial de ferramentas de terceiros ou perfilamento sem autorização.
+        </p>
+
+        <h4 style="font-weight: 700; color: var(--primary-dark); margin: 1rem 0 0.35rem 0;">4. LIBERDADE DE RECUSA</h4>
+        <p style="margin-bottom: 0;">
+          A sua concordância com este termo é voluntária. Caso opte por não autorizar o uso do processamento por Inteligência Artificial, você não sofrerá nenhuma penalidade acadêmica, e uma modalidade alternativa de avaliação equivalente será disponibilizada pela banca/instituição.
+        </p>
+      </div>
+
+      <!-- DECLARAÇÃO DE CONSENTIMENTO DIGITAL -->
+      <div style="margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.85rem; text-transform: uppercase;">
+          Declaração de Consentimento
+        </h3>
+
+        <!-- Option 1: Accept -->
+        <label id="tcle-accept-card" class="tcle-option" style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 1rem; border: 2px solid #cbd5e1; border-radius: 8px; margin-bottom: 0.75rem; cursor: pointer; transition: all 0.2s ease;">
+          <input type="radio" name="tcle-decision" id="tcle-accept" value="accept" style="margin-top: 0.2rem; width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
+          <div style="font-size: 0.95rem; color: #1e293b; line-height: 1.45;">
+            <strong style="color: #15803d; display: block; margin-bottom: 0.25rem;">[ &nbsp; ] Sim, dou meu consentimento.</strong>
+            Li e compreendi os termos acima, autorizo a gravação da minha prova oral e o seu processamento assistido por Inteligência Artificial, ciente de que o resultado final passará por revisão humana.
+          </div>
+        </label>
+
+        <!-- Option 2: Decline -->
+        <label id="tcle-decline-card" class="tcle-option" style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 1rem; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+          <input type="radio" name="tcle-decision" id="tcle-decline" value="decline" style="margin-top: 0.2rem; width: 18px; height: 18px; accent-color: #dc2626; cursor: pointer;">
+          <div style="font-size: 0.95rem; color: #1e293b; line-height: 1.45;">
+            <strong style="color: #b91c1c; display: block; margin-bottom: 0.25rem;">[ &nbsp; ] Não aceito.</strong>
+            Prefiro realizar a avaliação por um método alternativo sem processamento por IA.
+          </div>
+        </label>
+      </div>
+
+      <!-- SIGNATURE AND REGISTRATION DIGITAL STAMP -->
+      <div id="tcle-signature-box" style="background: #f1f5f9; border: 1px dashed #94a3b8; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; font-size: 0.9rem; line-height: 1.6;">
+        <div><strong>Local:</strong> Belo Horizonte - MG, <span id="tcle-date-display">...</span>.</div>
+        <div><strong>Nome do Aluno:</strong> <span id="tcle-student-name" style="font-weight: 700; color: var(--primary-dark);">...</span></div>
+        <div><strong>Matrícula:</strong> <span id="tcle-student-reg" style="font-weight: 700;">...</span></div>
+        <div><strong>Assinatura/Aceite Digital:</strong> <span id="tcle-digital-stamp" style="color: #64748b; font-style: italic;">Aguardando manifestação acima...</span></div>
+      </div>
+
+      <!-- Decline notice alert (Hidden by default) -->
+      <div id="tcle-decline-notice" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; color: #991b1b; font-size: 0.95rem;">
+        <strong>Atenção:</strong> Você optou por não realizar a prova com auxílio de Inteligência Artificial. Conforme o item 4 deste termo, você <strong>não sofrerá penalidade acadêmica</strong>. Por favor, comunique à <strong>Professora Patricia Drummond</strong> para realizar a avaliação alternativa.
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap;">
+        <button id="btn-tcle-logout" type="button" class="btn btn-outline">
+          Voltar ao Início
+        </button>
+        <button id="btn-tcle-submit" type="button" class="btn btn-primary" disabled style="padding: 0.65rem 1.5rem;">
+          Confirmar e Prosseguir para a Fila da Prova ➔
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. WAITING ROOM (Waiting for Approval by Teacher) -->
     <section id="view-waiting" class="card waiting-card" style="display: none;">
       <div class="pulse-spinner">⏳</div>
       <h2 style="font-size: 1.5rem; margin-bottom: 0.75rem;">Aguardando Autorização da Prova</h2>

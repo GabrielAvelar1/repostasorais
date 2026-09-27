@@ -462,6 +462,7 @@ async function getStudentsList() {
 
 /**
  * Fetch all students currently waiting for permission/pair approval
+ * (Only students who have accepted the TCLE digital consent appear in the queue)
  */
 async function getWaitingStudentsList() {
   const { data: students, error } = await supabase
@@ -481,16 +482,57 @@ async function getWaitingStudentsList() {
 
   if (error) throw error;
 
+  let consents = {};
+  try {
+    const raw = await getSetting('tcle_consents', '{}');
+    consents = JSON.parse(raw);
+  } catch (e) {
+    consents = {};
+  }
+
   return (students || []).filter(s => {
     const exam = Array.isArray(s.student_exams) ? s.student_exams[0] : (s.student_exams || null);
-    // Student is waiting if they do not have an active or completed exam
-    return !exam || !exam.id;
+    // Student is waiting only if they accepted the TCLE AND do not have an active or completed exam
+    const hasConsent = !!(consents[s.id] && consents[s.id].accepted);
+    return hasConsent && (!exam || !exam.id);
   }).map(s => ({
     user_id: s.id,
     registration: s.registration,
     full_name: s.full_name,
     created_at: s.created_at
   }));
+}
+
+/**
+ * Save digital TCLE consent for a student
+ */
+async function saveTcleConsent(userId, accepted) {
+  const raw = await getSetting('tcle_consents', '{}');
+  let consents = {};
+  try { consents = JSON.parse(raw); } catch (e) { consents = {}; }
+
+  const user = await getUserById(userId);
+  if (!user) throw new Error('Usuário não encontrado.');
+
+  consents[userId] = {
+    accepted: !!accepted,
+    acceptedAt: new Date().toISOString(),
+    registration: user.registration,
+    fullName: user.full_name
+  };
+
+  await setSetting('tcle_consents', JSON.stringify(consents));
+  return consents[userId];
+}
+
+/**
+ * Check if a student has accepted the digital TCLE consent
+ */
+async function hasUserAcceptedTcle(userId) {
+  const raw = await getSetting('tcle_consents', '{}');
+  let consents = {};
+  try { consents = JSON.parse(raw); } catch (e) { consents = {}; }
+  return !!(consents[userId] && consents[userId].accepted);
 }
 
 async function getDashboardStats() {
@@ -610,6 +652,9 @@ async function resetEntireSystem() {
   await findOrCreateUser('12345', 'Patricia', 'teacher');
   // 5. Reset grades_released to '0'
   await setSetting('grades_released', '0');
+  // 6. Reset pair history and TCLE consents
+  await setSetting('pair_history', '[]');
+  await setSetting('tcle_consents', '{}');
   return true;
 }
 
@@ -650,5 +695,7 @@ module.exports = {
   getDetailedExamExportData,
   resetEntireSystem,
   getTeacherUser,
-  updateTeacherProfile
+  updateTeacherProfile,
+  saveTcleConsent,
+  hasUserAcceptedTcle
 };

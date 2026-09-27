@@ -31,10 +31,24 @@ function setTranscribingState(transcribing) {
 
 // DOM Elements
 const viewLogin = document.getElementById('view-login');
+const viewTcle = document.getElementById('view-tcle');
 const viewWaiting = document.getElementById('view-waiting');
 const viewExam = document.getElementById('view-exam');
 const viewSubmitted = document.getElementById('view-submitted');
 const viewResults = document.getElementById('view-results');
+
+// TCLE Elements
+const tcleAcceptRadio = document.getElementById('tcle-accept');
+const tcleDeclineRadio = document.getElementById('tcle-decline');
+const tcleAcceptCard = document.getElementById('tcle-accept-card');
+const tcleDeclineCard = document.getElementById('tcle-decline-card');
+const tcleDateDisplay = document.getElementById('tcle-date-display');
+const tcleStudentName = document.getElementById('tcle-student-name');
+const tcleStudentReg = document.getElementById('tcle-student-reg');
+const tcleDigitalStamp = document.getElementById('tcle-digital-stamp');
+const tcleDeclineNotice = document.getElementById('tcle-decline-notice');
+const btnTcleSubmit = document.getElementById('btn-tcle-submit');
+const btnTcleLogout = document.getElementById('btn-tcle-logout');
 
 const headerUserSection = document.getElementById('header-user-section');
 const userDisplayName = document.getElementById('user-display-name');
@@ -84,7 +98,11 @@ function restoreSession() {
         return;
       }
       renderUserHeader();
-      loadStudentFlow();
+      if (!currentUser.tcleAccepted) {
+        showTcleView();
+      } else {
+        loadStudentFlow();
+      }
     } catch (e) {
       localStorage.removeItem('oral_exam_user');
       showView(viewLogin);
@@ -105,10 +123,48 @@ function renderUserHeader() {
 }
 
 function showView(viewElement) {
-  [viewLogin, viewWaiting, viewExam, viewSubmitted, viewResults].forEach(v => {
-    v.style.display = 'none';
+  [viewLogin, viewTcle, viewWaiting, viewExam, viewSubmitted, viewResults].forEach(v => {
+    if (v) v.style.display = 'none';
   });
-  viewElement.style.display = 'block';
+  if (viewElement) viewElement.style.display = 'block';
+}
+
+function showTcleView() {
+  if (!currentUser) return;
+
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  if (tcleDateDisplay) tcleDateDisplay.textContent = formattedDate;
+  if (tcleStudentName) tcleStudentName.textContent = currentUser.fullName || '';
+  if (tcleStudentReg) tcleStudentReg.textContent = currentUser.registration || '';
+
+  // Reset radio choices
+  if (tcleAcceptRadio) tcleAcceptRadio.checked = false;
+  if (tcleDeclineRadio) tcleDeclineRadio.checked = false;
+  if (tcleAcceptCard) {
+    tcleAcceptCard.style.borderColor = '#cbd5e1';
+    tcleAcceptCard.style.background = '#ffffff';
+  }
+  if (tcleDeclineCard) {
+    tcleDeclineCard.style.borderColor = '#cbd5e1';
+    tcleDeclineCard.style.background = '#ffffff';
+  }
+  if (tcleDeclineNotice) tcleDeclineNotice.style.display = 'none';
+  if (tcleDigitalStamp) {
+    tcleDigitalStamp.innerHTML = '<span style="color: #64748b; font-style: italic;">Aguardando manifestação acima...</span>';
+  }
+  if (btnTcleSubmit) {
+    btnTcleSubmit.disabled = true;
+    btnTcleSubmit.textContent = 'Confirmar e Prosseguir para a Fila da Prova ➔';
+    btnTcleSubmit.style.background = '';
+  }
+
+  showView(viewTcle);
 }
 
 function showToast(message) {
@@ -150,11 +206,135 @@ function setupEventListeners() {
       }
 
       renderUserHeader();
-      loadStudentFlow();
+      if (!currentUser.tcleAccepted) {
+        showTcleView();
+      } else {
+        loadStudentFlow();
+      }
     } catch (err) {
       alert(err.message);
     }
   });
+
+  // TCLE Radio Options
+  if (tcleAcceptRadio) {
+    tcleAcceptRadio.addEventListener('change', () => {
+      if (tcleAcceptRadio.checked) {
+        if (tcleAcceptCard) {
+          tcleAcceptCard.style.borderColor = 'var(--primary)';
+          tcleAcceptCard.style.background = 'var(--primary-light)';
+        }
+        if (tcleDeclineCard) {
+          tcleDeclineCard.style.borderColor = '#cbd5e1';
+          tcleDeclineCard.style.background = '#ffffff';
+        }
+        if (tcleDeclineNotice) tcleDeclineNotice.style.display = 'none';
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('pt-BR');
+        if (tcleDigitalStamp) {
+          tcleDigitalStamp.innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem; color: #166534; font-weight: 700; background: #dcfce7; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid #86efac; font-size: 0.85rem;">
+              <span>✓</span> ACEITE DIGITAL REGISTRADO (${currentUser?.fullName || ''} - Mat: ${currentUser?.registration || ''} às ${timeStr})
+            </span>
+          `;
+        }
+
+        if (btnTcleSubmit) {
+          btnTcleSubmit.disabled = false;
+          btnTcleSubmit.textContent = 'Confirmar e Prosseguir para a Fila da Prova ➔';
+          btnTcleSubmit.style.background = '';
+        }
+      }
+    });
+  }
+
+  if (tcleDeclineRadio) {
+    tcleDeclineRadio.addEventListener('change', () => {
+      if (tcleDeclineRadio.checked) {
+        if (tcleDeclineCard) {
+          tcleDeclineCard.style.borderColor = '#dc2626';
+          tcleDeclineCard.style.background = '#fee2e2';
+        }
+        if (tcleAcceptCard) {
+          tcleAcceptCard.style.borderColor = '#cbd5e1';
+          tcleAcceptCard.style.background = '#ffffff';
+        }
+        if (tcleDeclineNotice) tcleDeclineNotice.style.display = 'block';
+
+        if (tcleDigitalStamp) {
+          tcleDigitalStamp.innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem; color: #991b1b; font-weight: 700; background: #fee2e2; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid #fca5a5; font-size: 0.85rem;">
+              <span>✕</span> MANIFESTAÇÃO DE RECUSA REGISTRADA
+            </span>
+          `;
+        }
+
+        if (btnTcleSubmit) {
+          btnTcleSubmit.disabled = false;
+          btnTcleSubmit.textContent = 'Confirmar Opção Alternativa e Sair';
+          btnTcleSubmit.style.background = '#dc2626';
+        }
+      }
+    });
+  }
+
+  // TCLE Submit
+  if (btnTcleSubmit) {
+    btnTcleSubmit.addEventListener('click', async () => {
+      if (!tcleAcceptRadio?.checked && !tcleDeclineRadio?.checked) {
+        alert('Por favor, selecione uma das opções de consentimento para prosseguir.');
+        return;
+      }
+
+      if (tcleDeclineRadio?.checked) {
+        alert(
+          'Você optou por não realizar a avaliação assistida por Inteligência Artificial.\n\n' +
+          'Conforme o Item 4 do TCLE, você NÃO sofrerá nenhuma penalidade acadêmica.\n\n' +
+          'Por favor, apresente-se à Professora Patrícia Drummond para realizar a avaliação alternativa.'
+        );
+        localStorage.removeItem('oral_exam_user');
+        currentUser = null;
+        renderUserHeader();
+        showView(viewLogin);
+        return;
+      }
+
+      btnTcleSubmit.disabled = true;
+      btnTcleSubmit.textContent = 'Gravando consentimento...';
+
+      try {
+        const res = await fetch('/api/auth/tcle-consent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, accepted: true })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao registrar consentimento.');
+
+        currentUser.tcleAccepted = true;
+        localStorage.setItem('oral_exam_user', JSON.stringify(currentUser));
+
+        showToast('✅ Termo de Consentimento aceito com sucesso!');
+        loadStudentFlow();
+      } catch (err) {
+        alert(err.message || 'Erro ao salvar consentimento.');
+      } finally {
+        btnTcleSubmit.disabled = false;
+        btnTcleSubmit.textContent = 'Confirmar e Prosseguir para a Fila da Prova ➔';
+      }
+    });
+  }
+
+  // TCLE Return / Logout
+  if (btnTcleLogout) {
+    btnTcleLogout.addEventListener('click', () => {
+      localStorage.removeItem('oral_exam_user');
+      currentUser = null;
+      renderUserHeader();
+      showView(viewLogin);
+    });
+  }
 
   // Logout
   btnLogout.addEventListener('click', () => {
@@ -318,6 +498,11 @@ async function loadStudentFlow() {
     });
 
     if (res.status === 403) {
+      const errData = await res.json().catch(() => ({}));
+      if (errData.needsTcle) {
+        showTcleView();
+        return;
+      }
       // Exam is locked by teacher
       waitingStudentName.textContent = currentUser.fullName;
       showView(viewWaiting);
