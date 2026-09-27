@@ -55,16 +55,17 @@
       </form>
     </section>
 
-    <!-- 2. WAITING ROOM (Exam Locked by Teacher) -->
+    <!-- 2. WAITING ROOM (Waiting for Pair Approval by Teacher) -->
     <section id="view-waiting" class="card waiting-card" style="display: none;">
       <div class="pulse-spinner">⏳</div>
-      <h2 style="font-size: 1.5rem; margin-bottom: 0.75rem;">Aguardando Liberação da Prova</h2>
-      <p style="color: var(--text-muted); max-width: 480px; margin: 0 auto 1.5rem;">
-        Olá, <strong id="waiting-student-name">Aluno</strong>! A Prova Oral ainda não foi liberada pela <strong>Professora Patricia</strong>.
+      <h2 style="font-size: 1.5rem; margin-bottom: 0.75rem;">Aguardando Autorização da Dupla</h2>
+      <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.5rem;">
+        Olá, <strong id="waiting-student-name">Aluno</strong>! Você está conectado na fila de espera da Prova Oral em Dupla.
+        A <strong>Professora Patricia</strong> irá autorizar a sua dupla para iniciar a prova com as 5 questões sorteadas.
       </p>
       <div style="background: var(--primary-light); color: var(--primary-dark); padding: 0.75rem 1.25rem; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 500; font-size: 0.9rem;">
         <span style="display: inline-block; width: 10px; height: 10px; background: var(--primary); border-radius: 50%; animation: pulse 1.5s infinite;"></span>
-        Esta tela atualizará automaticamente assim que a prova for liberada.
+        Esta tela iniciará a prova automaticamente assim que a professora autorizar a sua dupla.
       </div>
       <div style="margin-top: 2rem;">
         <button id="btn-check-exam-now" class="btn btn-outline btn-sm">Verificar agora</button>
@@ -86,7 +87,7 @@
 
       <!-- Question Text -->
       <div class="question-box">
-        <div class="question-label">Pergunta Sorteada:</div>
+        <div class="question-label">Pergunta Sorteada da Dupla:</div>
         <div id="question-text" class="question-text">Carregando enunciado...</div>
       </div>
 
@@ -148,28 +149,43 @@
     </section>
 
     <!-- 4. EXAM SUBMITTED VIEW (Waiting for Grades Release) -->
-    <section id="view-submitted" class="card waiting-card" style="display: none;">
-      <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
-      <h2 style="font-size: 1.6rem; margin-bottom: 0.5rem; color: var(--success);">
-        Prova Oral Enviada com Sucesso!
-      </h2>
-      <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.5rem; font-size: 1rem;">
-        Suas 5 respostas foram gravadas e processadas. A <strong>Professora Patricia</strong> está revisando as correções. As notas e feedbacks serão liberados para toda a turma assim que a avaliação for finalizada.
-      </p>
-      <div style="background: var(--warning-light); color: #92400e; padding: 0.85rem 1.25rem; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
-        <span>🔔</span> As notas só aparecerão quando a professora liberar para todos os alunos.
+    <section id="view-submitted" class="card" style="display: none; padding: 2rem;">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">✅</div>
+        <h2 style="font-size: 1.6rem; margin-bottom: 0.5rem; color: var(--success);">
+          Prova Oral Enviada com Sucesso!
+        </h2>
+        <p style="color: var(--text-muted); max-width: 520px; margin: 0 auto 1.25rem; font-size: 1rem;">
+          Suas 5 respostas foram gravadas e processadas. A <strong>Professora Patricia</strong> está revisando as correções. As notas e feedbacks serão liberados para toda a turma assim que a avaliação for finalizada.
+        </p>
+        <div style="background: var(--warning-light); color: #92400e; padding: 0.75rem 1.25rem; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+          <span>🔔</span> As notas só aparecerão quando a professora liberar para todos os alunos.
+        </div>
+        <div style="margin-top: 1.5rem;">
+          <button id="btn-check-grades-now" class="btn btn-primary">
+            Verificar se as Notas Foram Liberadas
+          </button>
+        </div>
       </div>
-      <div style="margin-top: 2rem;">
-        <button id="btn-check-grades-now" class="btn btn-primary">
-          Verificar se as Notas Foram Liberadas
-        </button>
+
+      <!-- Container displaying student's submitted answers (Requirement 4) -->
+      <div id="submitted-answers-container" style="display: none; margin-top: 2rem; border-top: 2px dashed #e2e8f0; padding-top: 1.5rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          📝 Suas Respostas Gravadas nesta Prova:
+        </h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Abaixo estão registradas as transcrições das respostas que você enviou:
+        </p>
+        <div id="submitted-answers-list" style="display: flex; flex-direction: column; gap: 1rem;">
+          <!-- Dynamically populated student answers -->
+        </div>
       </div>
     </section>
 
     <!-- 5. RESULTS VIEW (Grades Released) -->
     <section id="view-results" class="card" style="display: none;">
       <div class="results-score-box">
-        <div class="results-score-label">Sua Nota Final na Prova Oral</div>
+        <div class="results-score-label">Sua Nota Final na Prova Oral (0 a 5.0)</div>
         <div id="results-total-score" class="results-score-value">--</div>
         <div style="font-size: 0.95rem; opacity: 0.85;">Avaliação de Odontopediatria • Profª. Patricia</div>
       </div>

@@ -9,8 +9,25 @@ let questions = [];
 let currentQuestionIndex = 0;
 let recognition = null;
 let isRecording = false;
+let isTranscribing = false;
 let autoSaveTimer = null;
 let statusPollingInterval = null;
+
+function setTranscribingState(transcribing) {
+  isTranscribing = transcribing;
+  if (btnPrevQ) btnPrevQ.disabled = transcribing;
+  if (btnNextQ) btnNextQ.disabled = transcribing;
+  if (btnFinishExam) btnFinishExam.disabled = transcribing;
+  if (btnSaveDraft) btnSaveDraft.disabled = transcribing;
+  
+  if (progressStepsContainer) {
+    const stepBtns = progressStepsContainer.querySelectorAll('.step-indicator');
+    stepBtns.forEach(b => {
+      b.style.pointerEvents = transcribing ? 'none' : 'auto';
+      b.style.opacity = transcribing ? '0.5' : '1';
+    });
+  }
+}
 
 // DOM Elements
 const viewLogin = document.getElementById('view-login');
@@ -183,6 +200,10 @@ function setupEventListeners() {
 
   // Question navigation
   btnPrevQ.addEventListener('click', () => {
+    if (isTranscribing) {
+      showToast('⏳ Aguarde a Inteligência Artificial transcrever sua resposta antes de mudar de questão!');
+      return;
+    }
     if (currentQuestionIndex > 0) {
       saveDraftNow();
       currentQuestionIndex--;
@@ -191,6 +212,10 @@ function setupEventListeners() {
   });
 
   btnNextQ.addEventListener('click', () => {
+    if (isTranscribing) {
+      showToast('⏳ Aguarde a Inteligência Artificial transcrever sua resposta antes de mudar de questão!');
+      return;
+    }
     if (currentQuestionIndex < questions.length - 1) {
       saveDraftNow();
       currentQuestionIndex++;
@@ -200,12 +225,20 @@ function setupEventListeners() {
 
   // Manual save draft
   btnSaveDraft.addEventListener('click', async () => {
+    if (isTranscribing) {
+      showToast('⏳ Aguarde a transcrição do áudio ser concluída!');
+      return;
+    }
     await saveDraftNow();
     showToast('💾 Rascunho salvo com sucesso!');
   });
 
   // Submit exam
   btnFinishExam.addEventListener('click', async () => {
+    if (isTranscribing) {
+      showToast('⏳ Aguarde a transcrição do áudio ser concluída antes de enviar a prova!');
+      return;
+    }
     if (isRecording) {
       try { await stopRecording(); } catch (e) {}
       await new Promise(r => setTimeout(r, 400));
@@ -313,22 +346,24 @@ async function loadStudentFlow() {
   }
 }
 
-// Poll until teacher unlocks the exam
+// Poll until teacher approves the pair exam
 function startExamStatusPolling() {
   clearInterval(statusPollingInterval);
   statusPollingInterval = setInterval(async () => {
+    if (!currentUser) return;
     try {
-      const res = await fetch('/api/exam/status');
-      const data = await res.json();
-      if (data.examOpen) {
+      const res = await fetch(`/api/exam/my-exam?userId=${currentUser.id}`, {
+        headers: { 'x-user-id': currentUser.id }
+      });
+      if (res.ok) {
         clearInterval(statusPollingInterval);
-        showToast('📢 A Professora Patricia liberou a prova!');
+        showToast('🎉 A Professora liberou a sua prova!');
         loadStudentFlow();
       }
     } catch (e) {
       console.warn('Polling error:', e);
     }
-  }, 4000);
+  }, 3500);
 }
 
 // Check if grades have been released
@@ -346,6 +381,24 @@ async function checkGradesRelease(manualClick = false) {
 
     if (!data.gradesReleased) {
       showView(viewSubmitted);
+
+      // Render student's submitted answers without questions or scores
+      const submittedContainer = document.getElementById('submitted-answers-container');
+      const submittedList = document.getElementById('submitted-answers-list');
+      if (submittedContainer && submittedList && data.myAnswers && data.myAnswers.length > 0) {
+        submittedList.innerHTML = '';
+        data.myAnswers.forEach(ans => {
+          const itemDiv = document.createElement('div');
+          itemDiv.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.85rem 1rem;';
+          itemDiv.innerHTML = `
+            <strong style="color: #475569; display: block; margin-bottom: 0.35rem; font-size: 0.95rem;">Questão ${ans.order_num}:</strong>
+            <p style="margin: 0; color: #1e293b; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(ans.student_answer || '[Nenhuma resposta inserida]')}</p>
+          `;
+          submittedList.appendChild(itemDiv);
+        });
+        submittedContainer.style.display = 'block';
+      }
+
       startGradesPolling();
       if (manualClick) {
         showToast('⏳ A Professora Patricia ainda não liberou as notas. O sistema atualiza automaticamente!');
@@ -398,6 +451,10 @@ function renderSteps() {
     stepBtn.textContent = idx + 1;
     stepBtn.title = `Questão ${idx + 1}`;
     stepBtn.addEventListener('click', () => {
+      if (isTranscribing) {
+        showToast('⏳ Aguarde a Inteligência Artificial transcrever sua resposta antes de mudar de questão!');
+        return;
+      }
       saveDraftNow();
       currentQuestionIndex = idx;
       renderCurrentQuestion();
@@ -470,7 +527,9 @@ function setupMobileAudioFallback() {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    speechStatus.textContent = '⏳ Áudio capturado! Transcrevendo com Inteligência Artificial...';
+    const targetIdx = currentQuestionIndex;
+    setTranscribingState(true);
+    speechStatus.textContent = '⏳ Áudio capturado! Transcrevendo com Inteligência Artificial... Por favor, aguarde.';
     speechStatus.classList.add('active');
 
     // Preview
@@ -495,9 +554,15 @@ function setupMobileAudioFallback() {
           });
           const data = await res.json();
           if (data.transcript && data.transcript.trim()) {
-            studentAnswerInput.value = data.transcript.trim();
-            if (questions[currentQuestionIndex]) {
-              questions[currentQuestionIndex].student_answer = data.transcript.trim();
+            const transcribed = data.transcript.trim();
+            if (questions[targetIdx]) {
+              const existing = (questions[targetIdx].student_answer || '').trim();
+              const fullText = existing ? `${existing} ${transcribed}` : transcribed;
+              questions[targetIdx].student_answer = fullText;
+              if (currentQuestionIndex === targetIdx) {
+                studentAnswerInput.value = fullText;
+                studentAnswerInput.dispatchEvent(new Event('input'));
+              }
               updateStepsUI();
               scheduleAutoSave();
             }
@@ -508,11 +573,14 @@ function setupMobileAudioFallback() {
         } catch (err) {
           console.warn('Transcription error:', err);
           speechStatus.textContent = 'Áudio gravado. Você pode digitar sua resposta abaixo.';
+        } finally {
+          setTranscribingState(false);
+          speechStatus.classList.remove('active');
         }
-        speechStatus.classList.remove('active');
       };
     } catch (err) {
       console.warn('FileReader error:', err);
+      setTranscribingState(false);
       speechStatus.classList.remove('active');
     }
   });
@@ -693,7 +761,9 @@ async function stopRecording() {
 
       // Send recorded audio to backend AI for transcription
       if (audioBlob.size > 100) {
-        speechStatus.textContent = '⏳ Áudio capturado! A Inteligência Artificial está transcrevendo sua resposta...';
+        const targetIdx = currentQuestionIndex;
+        setTranscribingState(true);
+        speechStatus.textContent = '⏳ Áudio capturado! A Inteligência Artificial está transcrevendo sua resposta... Por favor, aguarde.';
         speechStatus.classList.add('active');
         try {
           const reader = new FileReader();
@@ -711,12 +781,15 @@ async function stopRecording() {
               });
               const data = await res.json();
               if (data.transcript && data.transcript.trim()) {
-                const existing = (studentAnswerInput.value || '').trim();
-                const newText = existing ? `${existing} ${data.transcript.trim()}` : data.transcript.trim();
-                studentAnswerInput.value = newText;
-                studentAnswerInput.dispatchEvent(new Event('input'));
-                if (questions[currentQuestionIndex]) {
-                  questions[currentQuestionIndex].student_answer = newText;
+                const transcribed = data.transcript.trim();
+                if (questions[targetIdx]) {
+                  const existing = (questions[targetIdx].student_answer || '').trim();
+                  const newText = existing ? `${existing} ${transcribed}` : transcribed;
+                  questions[targetIdx].student_answer = newText;
+                  if (currentQuestionIndex === targetIdx) {
+                    studentAnswerInput.value = newText;
+                    studentAnswerInput.dispatchEvent(new Event('input'));
+                  }
                   updateStepsUI();
                   scheduleAutoSave();
                 }
@@ -727,11 +800,14 @@ async function stopRecording() {
             } catch (apiErr) {
               console.warn('Backend transcription error:', apiErr);
               speechStatus.textContent = 'Áudio salvo. Você pode digitar ou complementar sua resposta abaixo.';
+            } finally {
+              setTranscribingState(false);
+              speechStatus.classList.remove('active');
             }
-            speechStatus.classList.remove('active');
           };
         } catch (e) {
           console.warn('FileReader error:', e);
+          setTranscribingState(false);
           speechStatus.classList.remove('active');
         }
       } else {
@@ -827,7 +903,7 @@ function renderResults(data) {
         <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">
           Questão ${idx + 1}: ${q.question}
         </h4>
-        <span class="review-score-badge">Nota: ${scoreNum} / 10.0</span>
+        <span class="review-score-badge">Nota: ${scoreNum} / 5.0</span>
       </div>
 
       <div class="review-block review-student">

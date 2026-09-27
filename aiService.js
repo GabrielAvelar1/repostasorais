@@ -170,6 +170,9 @@ async function gradeWithGemini(answers, apiKey) {
 /**
  * Grade with Groq API
  */
+/**
+ * Grade with Groq API
+ */
 async function gradeWithGroq(answers, apiKey) {
   const url = 'https://api.groq.com/openai/v1/chat/completions';
   const prompt = buildEvaluationPrompt(answers);
@@ -183,7 +186,7 @@ async function gradeWithGroq(answers, apiKey) {
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       messages: [
-        { role: 'system', content: 'Você é um professor avaliador de odontologia especialista e rigoroso. Sempre responda estritamente em formato JSON.' },
+        { role: 'system', content: 'Você é a IA assistente pedagógica da Professora Patricia na avaliação de Prova Oral de Odontopediatria. Seja benevolente, valorize o aprendizado oral do aluno e responda estritamente em JSON.' },
         { role: 'user', content: prompt }
       ],
       response_format: { type: "json_object" },
@@ -202,7 +205,7 @@ async function gradeWithGroq(answers, apiKey) {
 }
 
 /**
- * Build consolidated evaluation prompt
+ * Build consolidated evaluation prompt (Scale 0.0 to 5.0, benevolent rubric)
  */
 function buildEvaluationPrompt(answers) {
   const questionsData = answers.map((a, i) => ({
@@ -214,13 +217,16 @@ function buildEvaluationPrompt(answers) {
   }));
 
   return `
-Você é a inteligência artificial assistente da Professora Patricia na avaliação de Prova Oral de Odontopediatria.
-Avalie com critério pedagógico cada uma das respostas dos alunos comparando-a com a "Resposta Esperada".
-Atenção: A resposta do aluno foi obtida por transcrição de voz (áudio), portanto pequenos desvios de pontuação ou fonética devem ser compreendidos se o conceito odontológico estiver correto.
+Você é a inteligência artificial assistente pedagógica da Professora Patricia na avaliação da Prova Oral de Odontopediatria da Faculdade Arnaldo.
 
-Para cada questão, atribua:
-1. "score": nota numérica de 0.0 a 10.0 (sendo 10.0 resposta completa com todos os conceitos-chave, notas intermediárias proporcionais ao que foi explicado, e 0.0 se não respondeu ou errou completamente).
-2. "feedback": justificativa clara e amigável em português explicando os acertos e o que faltou mencionar em relação à resposta esperada.
+DIRETRIZES DE AVALIAÇÃO OBRIGATÓRIAS (SEJA BENEVALENTE E VALORIZE O CONHECIMENTO):
+1. A resposta do aluno foi gravada por voz e transcrita por IA. Desconsidere hesitações, pausas, vícios de fala e pequenas variações de vocabulário ou pontuação.
+2. A escala de notas é de 0.0 a 5.0 (NOTA MÁXIMA É 5.0).
+3. SE O ALUNO FALOU OU ABORDOU OS PRINCIPAIS PONTOS E CONCEITOS CENTRAIS DA "Resposta Esperada", ATRIBUA A NOTA MÁXIMA (5.0) OU MUITO PRÓXIMA DISSO (4.5 a 5.0), mesmo que com suas próprias palavras e sem formalismos excessivos.
+4. Se o aluno explicou de forma correta e suficiente boa parte do conteúdo, atribua notas altas (entre 3.5 e 4.5).
+5. Apenas desconte pontos caso haja erro conceitual grave, ou se faltou algum aspecto crucial. Se o aluno não souber ou a resposta for vaga, atribua proporcionalmente (1.5 a 3.0).
+6. Se o aluno não respondeu ou falou algo totalmente desconexo do tema, atribua 0.0.
+7. O "feedback" deve ser encorajador, cordial e direto em português, ressaltando os acertos e indicando com gentileza caso algo possa ser complementado.
 
 Dados das questões:
 ${JSON.stringify(questionsData, null, 2)}
@@ -230,8 +236,8 @@ RESPONDA EXCLUSIVAMENTE COM UM JSON NO SEGUINTE FORMATO:
   "evaluations": [
     {
       "answerId": número_do_answerId,
-      "score": 8.5,
-      "feedback": "O aluno explicou corretamente os pontos A e B, mas faltou citar o ponto C."
+      "score": 5.0,
+      "feedback": "Excelente resposta! O aluno explicou com precisão os conceitos clínicos essenciais da questão."
     }
   ]
 }
@@ -239,7 +245,7 @@ RESPONDA EXCLUSIVAMENTE COM UM JSON NO SEGUINTE FORMATO:
 }
 
 /**
- * Parse grading JSON output
+ * Parse grading JSON output (Cap at 5.0)
  */
 function parseGradingResponse(rawText, answers) {
   let cleaned = rawText.trim();
@@ -255,15 +261,22 @@ function parseGradingResponse(rawText, answers) {
     const a = answers[i];
     const match = items.find(it => it.answerId === a.answer_id) || items[i];
     if (match) {
+      let rawScore = typeof match.score === 'number' ? match.score : parseFloat(match.score) || 0;
+      // If AI mistakenly returned out of 10, scale to 5
+      if (rawScore > 5.0 && rawScore <= 10.0) {
+        rawScore = rawScore / 2;
+      }
+      const score = Math.min(5.0, Math.max(0.0, Math.round(rawScore * 10) / 10));
+
       results.push({
         answerId: a.answer_id,
-        score: typeof match.score === 'number' ? match.score : parseFloat(match.score) || 0,
+        score: score,
         feedback: match.feedback || 'Resposta avaliada com sucesso.'
       });
     } else {
       results.push({
         answerId: a.answer_id,
-        score: 5.0,
+        score: 3.5,
         feedback: 'Avaliação processada.'
       });
     }
@@ -272,8 +285,7 @@ function parseGradingResponse(rawText, answers) {
 }
 
 /**
- * Heuristic fallback evaluation when no AI key is configured
- * Compares keywords and length semantically
+ * Heuristic fallback evaluation when no AI key is configured (Scale 0.0 to 5.0)
  */
 function gradeWithHeuristic(answers) {
   return answers.map(a => {
@@ -302,15 +314,15 @@ function gradeWithHeuristic(answers) {
       }
     }
 
-    const ratio = uniqueWords.length > 0 ? matchCount / uniqueWords.length : 0.5;
-    // Scale to 0-10 with generous baseline for effort
-    let score = Math.round((ratio * 8 + (student.length > 60 ? 2 : 1)) * 10) / 10;
-    score = Math.min(10.0, Math.max(0.0, score));
+    const ratio = uniqueWords.length > 0 ? matchCount / uniqueWords.length : 0.6;
+    // Scale to 0-5.0 with benevolent baseline: 2+ concepts gives 4.0+, 4+ concepts gives 5.0
+    let score = ratio >= 0.4 ? (ratio >= 0.65 ? 5.0 : 4.5) : Math.round((ratio * 4 + 1.5) * 10) / 10;
+    score = Math.min(5.0, Math.max(0.0, score));
 
     return {
       answerId: a.answer_id,
       score: score,
-      feedback: `Resposta avaliada pelo sistema (${matchCount} conceitos-chave identificados). A professora Patricia pode ajustar esta nota.`
+      feedback: `Resposta avaliada com sucesso (${matchCount} conceitos-chave identificados). A professora Patricia pode ajustar esta nota.`
     };
   });
 }

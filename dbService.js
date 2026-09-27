@@ -154,6 +154,80 @@ async function createStudentExamWithRandomQuestions(userId) {
   return exam;
 }
 
+/**
+ * Create exams for a pair of students with the EXACT SAME 5 questions
+ */
+async function createPairExams(studentIds) {
+  if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+    throw new Error('Nenhum aluno selecionado para a prova.');
+  }
+
+  // 1. Pick 5 random questions ONCE for the entire pair!
+  const allQ = await getAllQuestions();
+  const shuffled = [...allQ].sort(() => 0.5 - Math.random());
+  const selected5 = shuffled.slice(0, 5);
+
+  const createdExams = [];
+
+  for (const userId of studentIds) {
+    // If student already has an unfinished/old exam, clean it up first
+    const existing = await getStudentExam(userId);
+    if (existing) {
+      await supabase.from('exam_answers').delete().eq('exam_id', existing.id);
+      await supabase.from('student_exams').delete().eq('id', existing.id);
+    }
+
+    // Create fresh exam in 'draft'
+    const { data: exam, error: examErr } = await supabase
+      .from('student_exams')
+      .insert({ user_id: userId, status: 'draft' })
+      .select()
+      .single();
+    if (examErr) throw examErr;
+
+    // Insert identical 5 questions in the exact same order
+    const rows = selected5.map((q, idx) => ({
+      exam_id: exam.id,
+      question_id: q.id,
+      order_num: idx + 1,
+      student_answer: ''
+    }));
+
+    const { error: ansErr } = await supabase.from('exam_answers').insert(rows);
+    if (ansErr) throw ansErr;
+
+    createdExams.push(exam);
+  }
+
+  // Save pair session in settings for history / dashboard display
+  try {
+    const existingPairsStr = await getSetting('pair_history', '[]');
+    let pairs = [];
+    try { pairs = JSON.parse(existingPairsStr); } catch (e) { pairs = []; }
+
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('id, full_name, registration')
+      .in('id', studentIds);
+
+    const names = (usersData || []).map(u => u.full_name).join(' & ');
+
+    pairs.push({
+      pairId: Date.now().toString(),
+      studentIds,
+      studentNames: names,
+      questionIds: selected5.map(q => q.id),
+      createdAt: new Date().toISOString()
+    });
+
+    await setSetting('pair_history', JSON.stringify(pairs));
+  } catch (e) {
+    console.warn('Could not record pair history:', e.message);
+  }
+
+  return { success: true, count: createdExams.length, exams: createdExams };
+}
+
 async function getExamAnswers(examId) {
   const { data: answers, error } = await supabase
     .from('exam_answers')
@@ -278,7 +352,7 @@ async function updateGradingResults(examId, results) {
 
   let totalScore = 0;
   const updates = results.map(res => {
-    const scoreVal = Math.min(10, Math.max(0, parseFloat(res.score) || 0));
+    const scoreVal = Math.min(5, Math.max(0, parseFloat(res.score) || 0));
     totalScore += scoreVal;
     return supabase
       .from('exam_answers')
@@ -308,7 +382,7 @@ async function updateGradingResults(examId, results) {
 }
 
 async function updateTeacherGrade(answerId, teacherScore, teacherFeedback) {
-  const scoreNum = Math.min(10, Math.max(0, parseFloat(teacherScore) || 0));
+  const scoreNum = Math.min(5, Math.max(0, parseFloat(teacherScore) || 0));
 
   const { data: ans, error } = await supabase
     .from('exam_answers')
@@ -358,8 +432,19 @@ async function getStudentsList() {
     .eq('role', 'student')
     .order('full_name', { ascending: true });
 
+  let pairHistory = [];
+  try {
+    const raw = await getSetting('pair_history', '[]');
+    pairHistory = JSON.parse(raw);
+  } catch (e) {}
+
   return (students || []).map(s => {
     const exam = Array.isArray(s.student_exams) ? s.student_exams[0] : (s.student_exams || null);
+
+    // Find pair info if any
+    const pair = pairHistory.slice().reverse().find(p => p.studentIds && p.studentIds.includes(s.id));
+    const pair_label = pair ? pair.studentNames : null;
+
     return {
       user_id: s.id,
       registration: s.registration,
@@ -369,9 +454,43 @@ async function getStudentsList() {
       exam_status: exam ? exam.status : null,
       total_score: exam ? exam.total_score : null,
       submitted_at: exam ? exam.submitted_at : null,
-      graded_at: exam ? exam.graded_at : null
+      graded_at: exam ? exam.graded_at : null,
+      pair_label
     };
   });
+}
+
+/**
+ * Fetch all students currently waiting for permission/pair approval
+ */
+async function getWaitingStudentsList() {
+  const { data: students, error } = await supabase
+    .from('users')
+    .select(`
+      id,
+      registration,
+      full_name,
+      created_at,
+      student_exams (
+        id,
+        status
+      )
+    `)
+    .eq('role', 'student')
+    .order('full_name', { ascending: true });
+
+  if (error) throw error;
+
+  return (students || []).filter(s => {
+    const exam = Array.isArray(s.student_exams) ? s.student_exams[0] : (s.student_exams || null);
+    // Student is waiting if they do not have an active or completed exam
+    return !exam || !exam.id;
+  }).map(s => ({
+    user_id: s.id,
+    registration: s.registration,
+    full_name: s.full_name,
+    created_at: s.created_at
+  }));
 }
 
 async function getDashboardStats() {
@@ -516,6 +635,7 @@ module.exports = {
   getAllQuestions,
   getStudentExam,
   createStudentExamWithRandomQuestions,
+  createPairExams,
   getExamAnswers,
   saveDraftAnswers,
   submitExam,
@@ -523,6 +643,7 @@ module.exports = {
   updateTeacherGrade,
   updateAllTeacherGrades,
   getStudentsList,
+  getWaitingStudentsList,
   getDashboardStats,
   resetStudentExam,
   deleteStudent,

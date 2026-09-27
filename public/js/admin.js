@@ -28,12 +28,23 @@ const searchStudentInput = document.getElementById('search-student');
 const btnRefreshStudents = document.getElementById('btn-refresh-students');
 const studentsTableBody = document.getElementById('students-table-body');
 
+// Waiting Queue for Pairs
+const waitingQueueContainer = document.getElementById('waiting-queue-container');
+const badgeWaitingCount = document.getElementById('badge-waiting-count');
+const selectedPairCounter = document.getElementById('selected-pair-counter');
+const btnApprovePair = document.getElementById('btn-approve-pair');
+
+let waitingStudentsList = [];
+let selectedWaitingStudentIds = [];
+
 // Modals
 const modalReview = document.getElementById('modal-review');
 const modalReviewStudentName = document.getElementById('modal-review-student-name');
 const modalReviewStudentMeta = document.getElementById('modal-review-student-meta');
 const modalReviewBody = document.getElementById('modal-review-body');
+const modalTopScoreBadge = document.getElementById('modal-top-score-badge');
 const modalTotalScoreBadge = document.getElementById('modal-total-score-badge');
+const btnSaveAllGradesTop = document.getElementById('btn-save-all-grades-top');
 const btnRegradeAi = document.getElementById('btn-regrade-ai');
 
 const modalSettings = document.getElementById('modal-settings');
@@ -49,6 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupAdminEvents();
   loadDashboardData();
   loadStudents();
+  loadWaitingStudents();
+  // Poll waiting queue every 4 seconds to show arriving students in real-time
+  setInterval(loadWaitingStudents, 4000);
 });
 
 // -------------------------------------------------------------
@@ -257,7 +271,7 @@ function setupAdminEvents() {
           const scoreVal = scoreEl ? parseFloat(scoreEl.value) : 0;
           return {
             answerId: a.answer_id,
-            score: isNaN(scoreVal) ? 0 : Math.min(10, Math.max(0, scoreVal)),
+            score: isNaN(scoreVal) ? 0 : Math.min(5, Math.max(0, scoreVal)),
             feedback: feedbackEl ? feedbackEl.value.trim() : ''
           };
         });
@@ -282,6 +296,51 @@ function setupAdminEvents() {
       } finally {
         btnSaveAllGrades.disabled = false;
         btnSaveAllGrades.textContent = '💾 Salvar Todas as Notas e Correções';
+      }
+    });
+  }
+
+  // Top Sticky Save All Grades Button
+  if (btnSaveAllGradesTop && btnSaveAllGrades) {
+    btnSaveAllGradesTop.addEventListener('click', () => {
+      btnSaveAllGrades.click();
+    });
+  }
+
+  // Approve Pair Button Trigger
+  if (btnApprovePair) {
+    btnApprovePair.addEventListener('click', async () => {
+      if (selectedWaitingStudentIds.length === 0) return;
+
+      const count = selectedWaitingStudentIds.length;
+      const confirmMsg = count === 2
+        ? 'Deseja autorizar esta dupla e sortear as 5 questões idênticas para ambos?'
+        : 'Deseja autorizar este aluno individualmente com 5 questões?';
+
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        btnApprovePair.disabled = true;
+        btnApprovePair.textContent = 'Autorizando dupla...';
+
+        const res = await fetch('/api/admin/approve-pair', {
+          method: 'POST',
+          headers: getAdminHeaders(),
+          body: JSON.stringify({ studentIds: selectedWaitingStudentIds })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        showToast('🎉 Dupla autorizada com sucesso! As 5 questões idênticas foram sorteadas.');
+        selectedWaitingStudentIds = [];
+        loadWaitingStudents();
+        loadStudents();
+        loadDashboardData();
+      } catch (err) {
+        alert(err.message || 'Erro ao autorizar dupla.');
+      } finally {
+        btnApprovePair.disabled = false;
+        btnApprovePair.textContent = '✨ Aprovar Dupla e Iniciar Prova';
       }
     });
   }
@@ -388,6 +447,103 @@ function updateGradesStatusUI(isReleased) {
 }
 
 // -------------------------------------------------------------
+// WAITING QUEUE & PAIR MANAGEMENT
+// -------------------------------------------------------------
+async function loadWaitingStudents() {
+  try {
+    const res = await fetch('/api/admin/waiting-students', { headers: getAdminHeaders() });
+    waitingStudentsList = await res.json();
+    renderWaitingQueue();
+  } catch (err) {
+    console.error('Error fetching waiting queue:', err);
+  }
+}
+
+function renderWaitingQueue() {
+  if (!waitingQueueContainer) return;
+
+  if (badgeWaitingCount) {
+    badgeWaitingCount.textContent = `${waitingStudentsList.length} aguardando`;
+  }
+
+  // Filter selected IDs that still exist in waiting list
+  selectedWaitingStudentIds = selectedWaitingStudentIds.filter(id => waitingStudentsList.some(s => s.user_id === id));
+  updateSelectedPairUI();
+
+  if (waitingStudentsList.length === 0) {
+    waitingQueueContainer.innerHTML = `
+      <div style="color: var(--text-muted); font-size: 0.9rem; padding: 1.25rem; text-align: center; grid-column: 1 / -1; background: #f8fafc; border-radius: 8px;">
+        ✨ Nenhum aluno aguardando autorização no momento. Quando um aluno entrar no sistema, ele aparecerá aqui para você formar a dupla.
+      </div>
+    `;
+    return;
+  }
+
+  waitingQueueContainer.innerHTML = waitingStudentsList.map(s => {
+    const isSelected = selectedWaitingStudentIds.includes(s.user_id);
+    return `
+      <div 
+        class="waiting-student-card" 
+        onclick="toggleSelectWaitingStudent(${s.user_id})"
+        style="
+          border: 2px solid ${isSelected ? 'var(--primary)' : '#e2e8f0'};
+          background: ${isSelected ? 'var(--primary-light)' : '#ffffff'};
+          border-radius: 8px;
+          padding: 0.75rem 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        "
+      >
+        <div>
+          <div style="font-weight: 700; color: ${isSelected ? 'var(--primary-dark)' : 'var(--text-main)'}; font-size: 0.95rem;">
+            ${escapeHtml(s.full_name)}
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">
+            Matrícula: <strong>${escapeHtml(s.registration)}</strong>
+          </div>
+        </div>
+        <div>
+          <input 
+            type="checkbox" 
+            id="chk-student-${s.user_id}" 
+            ${isSelected ? 'checked' : ''} 
+            style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);"
+            onclick="event.stopPropagation(); toggleSelectWaitingStudent(${s.user_id});"
+          >
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleSelectWaitingStudent(userId) {
+  const index = selectedWaitingStudentIds.indexOf(userId);
+  if (index > -1) {
+    selectedWaitingStudentIds.splice(index, 1);
+  } else {
+    if (selectedWaitingStudentIds.length >= 2) {
+      showToast('Apenas 2 alunos podem ser selecionados para a dupla.');
+      return;
+    }
+    selectedWaitingStudentIds.push(userId);
+  }
+  renderWaitingQueue();
+}
+window.toggleSelectWaitingStudent = toggleSelectWaitingStudent;
+
+function updateSelectedPairUI() {
+  if (selectedPairCounter) {
+    selectedPairCounter.textContent = `Selecionados: ${selectedWaitingStudentIds.length}/2`;
+  }
+  if (btnApprovePair) {
+    btnApprovePair.disabled = selectedWaitingStudentIds.length === 0;
+  }
+}
+
+// -------------------------------------------------------------
 // LOAD STUDENTS
 // -------------------------------------------------------------
 async function loadStudents() {
@@ -397,7 +553,7 @@ async function loadStudents() {
     renderStudentsTable();
   } catch (err) {
     console.error('Error fetching students:', err);
-    studentsTableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1rem;">Erro ao carregar alunos.</td></tr>`;
+    studentsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Erro ao carregar alunos.</td></tr>`;
   }
 }
 
@@ -409,7 +565,7 @@ function renderStudentsTable() {
   );
 
   if (filtered.length === 0) {
-    studentsTableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum aluno encontrado.</td></tr>`;
+    studentsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum aluno encontrado.</td></tr>`;
     return;
   }
 
@@ -427,8 +583,12 @@ function renderStudentsTable() {
       statusBadge = '<span class="badge badge-success">Corrigida</span>';
     }
 
+    const pairDisplay = s.pair_label
+      ? `<span class="badge badge-primary" style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">👥 ${escapeHtml(s.pair_label)}</span>`
+      : '<span style="color: var(--text-muted); font-size: 0.85rem;">-</span>';
+
     const scoreDisplay = (s.total_score !== null && s.total_score !== undefined) 
-      ? `<strong style="font-size: 1.1rem; color: var(--primary-dark);">${Number(s.total_score).toFixed(1)}</strong>` 
+      ? `<strong style="font-size: 1.1rem; color: var(--primary-dark);">${Number(s.total_score).toFixed(1)} / 5.0</strong>` 
       : '-';
 
     const dateDisplay = s.submitted_at ? new Date(s.submitted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
@@ -447,6 +607,7 @@ function renderStudentsTable() {
       <tr>
         <td style="font-weight: 600;">${escapeHtml(s.registration)}</td>
         <td><strong>${escapeHtml(s.full_name)}</strong></td>
+        <td>${pairDisplay}</td>
         <td>${statusBadge}</td>
         <td>${scoreDisplay}</td>
         <td>${dateDisplay}</td>
@@ -518,7 +679,12 @@ async function openReviewModal(examId) {
 
     modalReviewStudentName.textContent = `Aluno: ${exam.full_name}`;
     modalReviewStudentMeta.textContent = `Matrícula: ${exam.registration} | Status: ${exam.status.toUpperCase()} | Enviado em: ${exam.submitted_at ? new Date(exam.submitted_at).toLocaleString('pt-BR') : '-'}`;
-    modalTotalScoreBadge.textContent = exam.total_score !== null ? Number(exam.total_score).toFixed(1) : '--';
+    
+    const initialScoreText = exam.total_score !== null && exam.total_score !== undefined
+      ? `${Number(exam.total_score).toFixed(1)} / 5.0`
+      : '-- / 5.0';
+    if (modalTopScoreBadge) modalTopScoreBadge.textContent = initialScoreText;
+    if (modalTotalScoreBadge) modalTotalScoreBadge.textContent = initialScoreText;
 
     modalReviewBody.innerHTML = answers.map((a, idx) => {
       const currentScore = a.final_score !== null && a.final_score !== undefined ? Number(a.final_score).toFixed(1) : '';
@@ -533,7 +699,7 @@ async function openReviewModal(examId) {
             </div>
             <div style="text-align: right;">
               <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Nota Sugerida IA:</span>
-              <strong style="color: var(--primary); font-size: 1.1rem;">${a.ai_score !== null ? Number(a.ai_score).toFixed(1) : '-'} / 10</strong>
+              <strong style="color: var(--primary); font-size: 1.1rem;">${a.ai_score !== null ? Number(a.ai_score).toFixed(1) : '-'} / 5.0</strong>
             </div>
           </div>
 
@@ -575,16 +741,17 @@ async function openReviewModal(examId) {
             </div>
             
             <div style="display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap;">
-              <div style="width: 140px;">
-                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 0.25rem;">Nota (0 a 10):</label>
+              <div style="width: 150px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 0.25rem;">Nota Oficial (0 a 5.0):</label>
                 <input 
                   type="number" 
                   step="0.1" 
                   min="0" 
-                  max="10" 
+                  max="5.0" 
                   id="score-input-${a.answer_id}" 
                   class="form-control" 
                   value="${currentScore}"
+                  oninput="updateLiveModalAverage()"
                   style="font-weight: 700; font-size: 1.15rem; color: var(--primary-dark);"
                 >
               </div>
@@ -619,6 +786,26 @@ async function openReviewModal(examId) {
   }
 }
 
+function updateLiveModalAverage() {
+  if (!currentModalAnswers || currentModalAnswers.length === 0) return;
+  let sum = 0;
+  let count = 0;
+  currentModalAnswers.forEach(a => {
+    const el = document.getElementById(`score-input-${a.answer_id}`);
+    if (el) {
+      const val = parseFloat(el.value);
+      if (!isNaN(val)) {
+        sum += Math.min(5, Math.max(0, val));
+        count++;
+      }
+    }
+  });
+  const avg = count > 0 ? (Math.round((sum / count) * 10) / 10).toFixed(1) : '--';
+  if (modalTopScoreBadge) modalTopScoreBadge.textContent = `${avg} / 5.0`;
+  if (modalTotalScoreBadge) modalTotalScoreBadge.textContent = `${avg} / 5.0`;
+}
+window.updateLiveModalAverage = updateLiveModalAverage;
+
 function copyAiCorrectionToTeacher(answerId) {
   const aiBlock = document.getElementById(`ai-feedback-text-${answerId}`);
   const feedbackInput = document.getElementById(`feedback-input-${answerId}`);
@@ -635,8 +822,8 @@ async function saveAnswerGrade(answerId) {
   if (!scoreInput) return;
 
   const scoreVal = parseFloat(scoreInput.value);
-  if (isNaN(scoreVal) || scoreVal < 0 || scoreVal > 10) {
-    alert('A nota deve ser um número entre 0 e 10.');
+  if (isNaN(scoreVal) || scoreVal < 0 || scoreVal > 5) {
+    alert('A nota deve ser um número entre 0 e 5.0.');
     return;
   }
 

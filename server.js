@@ -104,17 +104,13 @@ app.get('/api/exam/my-exam', async (req, res) => {
 
     let exam = await dbService.getStudentExam(userId);
 
-    // If student hasn't started yet and exam is closed, block
-    if (!exam && !isExamOpen) {
+    // If student has not been approved in a pair by the teacher yet, keep in waiting room
+    if (!exam) {
       return res.status(403).json({
         locked: true,
-        message: 'A prova ainda não foi liberada pela Professora Patricia.'
+        waitingApproval: true,
+        message: 'Aguardando a Professora Patricia autorizar sua dupla para iniciar a prova oral.'
       });
-    }
-
-    // Create exam with 5 random questions if new
-    if (!exam) {
-      exam = await dbService.createStudentExamWithRandomQuestions(userId);
     }
 
     // Fetch questions and student's draft answers
@@ -227,11 +223,16 @@ app.get('/api/exam/my-result', async (req, res) => {
     }
 
     if (!gradesReleased) {
+      const rawAnswers = await dbService.getExamAnswers(exam.id);
       return res.json({
         status: exam.status,
         gradesReleased: false,
         submittedAt: exam.submitted_at,
-        message: 'Sua prova foi enviada e está sendo revisada pela Professora Patricia. As notas serão liberadas para toda a turma em breve.'
+        message: 'Sua prova foi enviada e está sendo revisada pela Professora Patricia. As notas serão liberadas para toda a turma em breve.',
+        myAnswers: rawAnswers.map((a, i) => ({
+          order_num: a.order_num || (i + 1),
+          student_answer: a.student_answer || '[Sem resposta gravada]'
+        }))
       });
     }
 
@@ -352,6 +353,40 @@ app.get('/api/admin/students', requireTeacher, async (req, res) => {
   } catch (err) {
     console.error('Error fetching students list:', err);
     res.status(500).json({ error: 'Erro ao listar alunos.' });
+  }
+});
+
+// List all students currently waiting in queue for pair approval
+app.get('/api/admin/waiting-students', requireTeacher, async (req, res) => {
+  try {
+    const list = await dbService.getWaitingStudentsList();
+    res.json(list);
+  } catch (err) {
+    console.error('Error fetching waiting students:', err);
+    res.status(500).json({ error: 'Erro ao listar alunos na fila de espera.' });
+  }
+});
+
+// Approve pair of students and draw identical 5 questions
+app.post('/api/admin/approve-pair', requireTeacher, async (req, res) => {
+  try {
+    const { studentIds } = req.body;
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ error: 'Selecione ao menos 1 aluno para iniciar a prova.' });
+    }
+    if (studentIds.length > 2) {
+      return res.status(400).json({ error: 'A prova em dupla permite autorizar no máximo 2 alunos por vez.' });
+    }
+
+    const result = await dbService.createPairExams(studentIds);
+    res.json({
+      success: true,
+      message: 'Dupla autorizada com sucesso! As 5 questões idênticas foram sorteadas e disponibilizadas.',
+      result
+    });
+  } catch (err) {
+    console.error('Error approving pair:', err);
+    res.status(500).json({ error: err.message || 'Erro ao autorizar dupla.' });
   }
 });
 
