@@ -730,3 +730,167 @@ body {
   .exam-nav { flex-direction: column-reverse; gap: 1rem; }
   .exam-nav .btn { width: 100%; }
 }
+
+/* Mobile Teacher Dashboard & Responsive Table */
+@media (max-width: 768px) {
+  .admin-metrics {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  .metric-card {
+    padding: 0.85rem !important;
+  }
+
+  .metric-title {
+    font-size: 0.75rem !important;
+  }
+
+  .metric-value {
+    font-size: 1.5rem !important;
+  }
+
+  .admin-actions-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 1rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .admin-btn-group {
+    width: 100% !important;
+    flex-direction: column !important;
+  }
+
+  .admin-btn-group .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Table becomes responsive card list without ANY horizontal scrolling */
+  .table-container {
+    overflow-x: visible !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .data-table,
+  .data-table thead,
+  .data-table tbody,
+  .data-table th,
+  .data-table td,
+  .data-table tr {
+    display: block !important;
+  }
+
+  .data-table thead {
+    display: none !important;
+  }
+
+  .data-table tbody tr {
+    background: #ffffff !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+    margin-bottom: 1.25rem !important;
+    padding: 1rem !important;
+  }
+
+  .data-table td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0.55rem 0 !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: 0.9rem !important;
+    text-align: right !important;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: left;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  /* Actions cell in mobile card */
+  .data-table td.actions-cell {
+    display: block !important;
+    width: 100% !important;
+    border-bottom: none !important;
+    padding-top: 0.75rem !important;
+    margin-top: 0.5rem !important;
+    border-top: 2px dashed #e2e8f0 !important;
+    text-align: center !important;
+  }
+
+  .data-table td.actions-cell::before {
+    display: none !important;
+  }
+
+  .action-btn-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .action-btn-group .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 0.65rem 1rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Modal on mobile */
+  .modal-overlay {
+    padding: 0.5rem !important;
+  }
+
+  .modal-content {
+    max-height: 95vh !important;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse !important;
+    gap: 0.5rem !important;
+  }
+
+  .modal-footer .btn {
+    width: 100% !important;
+  }
+}
+
+/* TCLE Certificate Print Styling */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #modal-tcle-proof,
+  #modal-tcle-proof * {
+    visibility: visible;
+  }
+  #modal-tcle-proof {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    background: #ffffff !important;
+    display: block !important;
+    padding: 0;
+  }
+  #modal-tcle-proof .modal-close,
+  #modal-tcle-proof .modal-footer,
+  #btn-print-tcle {
+    display: none !important;
+  }
+  #modal-tcle-proof .modal-content {
+    box-shadow: none !important;
+    border: 2px solid #000 !important;
+    max-width: 100% !important;
+  }
+}

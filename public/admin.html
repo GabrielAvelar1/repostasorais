@@ -141,6 +141,7 @@
               <th>Matrícula</th>
               <th>Nome Completo</th>
               <th>Dupla</th>
+              <th>Termo (TCLE)</th>
               <th>Status da Prova</th>
               <th>Nota Final (0 a 5)</th>
               <th>Data de Envio</th>
@@ -149,7 +150,7 @@
           </thead>
           <tbody id="students-table-body">
             <tr>
-              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                 Carregando lista de alunos...
               </td>
             </tr>
@@ -291,6 +292,35 @@
           <button class="btn btn-primary" type="submit">💾 Salvar Alterações</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TCLE PROOF CERTIFICATE -->
+  <div id="modal-tcle-proof" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 680px; max-height: 90vh;">
+      <div class="modal-header" style="background: #f8fafc; border-bottom: 2px solid var(--border);">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.4rem;">📜</span>
+          <div>
+            <h3 class="modal-title" style="font-size: 1.15rem;">Comprovante de Aceite do TCLE</h3>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Termo de Consentimento Livre e Esclarecido Digital</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeTcleProofModal()">✕</button>
+      </div>
+
+      <div class="modal-body" id="modal-tcle-body" style="padding: 1.5rem; overflow-y: auto;">
+        <!-- Dynamically rendered TCLE details -->
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <button class="btn btn-outline" type="button" onclick="printTcleCertificate()" id="btn-print-tcle">
+          🖨️ Imprimir / Salvar PDF
+        </button>
+        <button class="btn btn-primary" type="button" onclick="closeTcleProofModal()">
+          Fechar
+        </button>
+      </div>
     </div>
   </div>
 

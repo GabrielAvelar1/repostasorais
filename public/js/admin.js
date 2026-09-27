@@ -602,7 +602,7 @@ function renderStudentsTable() {
   );
 
   if (filtered.length === 0) {
-    studentsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum aluno encontrado.</td></tr>`;
+    studentsTableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum aluno encontrado.</td></tr>`;
     return;
   }
 
@@ -631,10 +631,21 @@ function renderStudentsTable() {
     const dateDisplay = s.submitted_at ? new Date(s.submitted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
 
     const escapedName = escapeHtml(s.full_name).replace(/'/g, "\\'");
+    const escapedReg = escapeHtml(s.registration).replace(/'/g, "\\'");
+
+    // TCLE Badge
+    let tcleBadge = '';
+    if (s.tcle_accepted) {
+      const timeStr = s.tcle_accepted_at ? new Date(s.tcle_accepted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+      tcleBadge = `<button class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; background: #ecfdf5; font-size: 0.8rem; padding: 0.25rem 0.55rem; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Visualizar comprovante digital do TCLE">✅ Aceito ${timeStr ? `(${timeStr})` : ''}</button>`;
+    } else {
+      tcleBadge = `<button class="btn btn-outline btn-sm" style="color: #d97706; border-color: #fde68a; background: #fffbeb; font-size: 0.8rem; padding: 0.25rem 0.55rem; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Aluno ainda não aceitou o TCLE">⏳ Pendente</button>`;
+    }
 
     const actionBtns = `
-      <div style="display: inline-flex; gap: 0.35rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
-        ${s.exam_id ? `<button class="btn btn-primary btn-sm" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">👁️ Ver Respostas & Correção IA</button>` : '<span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.5rem;">(Aguardando aluno)</span>'}
+      <div class="action-btn-group" style="display: inline-flex; gap: 0.35rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+        ${s.exam_id ? `<button class="btn btn-primary btn-sm" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">👁️ Ver Respostas & IA</button>` : '<span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.3rem;">(Aguardando aluno)</span>'}
+        <button class="btn btn-outline btn-sm" style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Ver comprovante oficial do Termo de Consentimento (TCLE) aceito pelo aluno">📜 Ver TCLE</button>
         ${s.exam_id ? `<button class="btn btn-outline btn-sm" style="color: #b45309; border-color: #fde68a;" onclick="handleResetExam(${s.user_id}, '${escapedName}')" title="Zerar a prova deste aluno para ele refazer">🔄 Resetar Prova</button>` : ''}
         <button class="btn btn-outline btn-sm" style="color: #b91c1c; border-color: #fecaca;" onclick="handleDeleteStudent(${s.user_id}, '${escapedName}')" title="Remover aluno da turma">🗑️ Excluir</button>
       </div>
@@ -642,17 +653,163 @@ function renderStudentsTable() {
 
     return `
       <tr>
-        <td style="font-weight: 600;">${escapeHtml(s.registration)}</td>
-        <td><strong>${escapeHtml(s.full_name)}</strong></td>
-        <td>${pairDisplay}</td>
-        <td>${statusBadge}</td>
-        <td>${scoreDisplay}</td>
-        <td>${dateDisplay}</td>
-        <td style="text-align: right;">${actionBtns}</td>
+        <td data-label="Matrícula" style="font-weight: 600;">${escapeHtml(s.registration)}</td>
+        <td data-label="Nome Completo"><strong>${escapeHtml(s.full_name)}</strong></td>
+        <td data-label="Dupla">${pairDisplay}</td>
+        <td data-label="Termo (TCLE)">${tcleBadge}</td>
+        <td data-label="Status da Prova">${statusBadge}</td>
+        <td data-label="Nota Final">${scoreDisplay}</td>
+        <td data-label="Data de Envio">${dateDisplay}</td>
+        <td data-label="Ações da Professora" class="actions-cell">${actionBtns}</td>
       </tr>
     `;
   }).join('');
 }
+
+// -------------------------------------------------------------
+// TCLE PROOF CERTIFICATE MODAL
+// -------------------------------------------------------------
+async function openTcleProofModal(userId, studentName, registration) {
+  const modal = document.getElementById('modal-tcle-proof');
+  const body = document.getElementById('modal-tcle-body');
+  if (!modal || !body) return;
+
+  modal.style.display = 'flex';
+  body.innerHTML = `
+    <div style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📜</div>
+      <p style="font-size: 0.95rem;">Carregando comprovante do termo...</p>
+    </div>
+  `;
+
+  try {
+    const res = await fetch(`/api/admin/student/${userId}/tcle`, {
+      headers: getAdminHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao consultar comprovante');
+
+    const sName = escapeHtml(data.student.fullName || studentName);
+    const sReg = escapeHtml(data.student.registration || registration);
+    const hasAccepted = data.hasAccepted;
+    const acceptedAtStr = data.acceptedAt ? new Date(data.acceptedAt).toLocaleString('pt-BR') : 'Pendente de aceite';
+    const code = escapeHtml(data.verificationCode || `TCLE-${userId}-${sReg}`);
+    const discipline = escapeHtml(data.discipline || 'Estágio em Clínica odontológica integrada infantil I');
+    const teacher = escapeHtml(data.teacherName || 'Patricia Drummond');
+
+    body.innerHTML = `
+      <div style="background: #ffffff; border: 2px solid ${hasAccepted ? '#22c55e' : '#f59e0b'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+        <!-- Header badge -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: ${hasAccepted ? '#15803d' : '#b45309'}; letter-spacing: 0.05em;">
+              FACULDADE ARNALDO • CURSO DE ODONTOLOGIA
+            </div>
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin: 0.25rem 0 0 0;">
+              Comprovante de Aceite Digital do TCLE
+            </h2>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">
+              Termo de Consentimento Livre e Esclarecido • Avaliação Oral com IA
+            </div>
+          </div>
+          <div>
+            ${hasAccepted 
+              ? `<span style="background: #dcfce7; color: #166534; font-weight: 700; font-size: 0.85rem; padding: 0.4rem 0.85rem; border-radius: 50px; border: 1px solid #86efac; display: inline-flex; align-items: center; gap: 0.35rem;">
+                  ✅ Aceite Registrado
+                 </span>`
+              : `<span style="background: #fef3c7; color: #92400e; font-weight: 700; font-size: 0.85rem; padding: 0.4rem 0.85rem; border-radius: 50px; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 0.35rem;">
+                  ⏳ Aceite Pendente
+                 </span>`
+            }
+          </div>
+        </div>
+
+        <!-- Student & Discipline Details -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; background: #f8fafc; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem; border: 1px solid #e2e8f0;">
+          <div>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block;">Nome do(a) Aluno(a)</span>
+            <strong style="font-size: 1.05rem; color: var(--text-main);">${sName}</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block;">Matrícula Acadêmica</span>
+            <strong style="font-size: 1.05rem; color: var(--text-main);">${sReg}</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block;">Data e Horário do Aceite</span>
+            <strong style="font-size: 0.95rem; color: ${hasAccepted ? '#166534' : '#b45309'};">${acceptedAtStr}</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block;">Docente Responsável</span>
+            <strong style="font-size: 0.95rem; color: var(--text-main);">${teacher}</strong>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block;">Disciplina</span>
+            <span style="font-size: 0.95rem; font-weight: 600; color: var(--primary-dark);">${discipline}</span>
+          </div>
+        </div>
+
+        <!-- Terms Manifested -->
+        <div style="margin-bottom: 1.25rem;">
+          <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.6rem;">
+            Declarações e Cláusulas Aceitas Digitalmente pelo Aluno:
+          </h4>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem; color: #334155; line-height: 1.45;">
+            <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <span style="color: ${hasAccepted ? '#16a34a' : '#94a3b8'}; font-weight: bold; font-size: 1rem;">✔</span>
+              <span><strong>Gravação em Áudio:</strong> Consentiu com a gravação do áudio de suas respostas orais durante a avaliação para posterior transcrição textual.</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <span style="color: ${hasAccepted ? '#16a34a' : '#94a3b8'}; font-weight: bold; font-size: 1rem;">✔</span>
+              <span><strong>Auxílio de Inteligência Artificial:</strong> Concordou com a utilização de ferramenta de IA como instrumento auxiliar de transcrição e sugestão de correção.</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <span style="color: ${hasAccepted ? '#16a34a' : '#94a3b8'}; font-weight: bold; font-size: 1rem;">✔</span>
+              <span><strong>Soberania Docente:</strong> Teve ciência expressa de que a Professora Patricia Drummond é a autoridade responsável pela revisão soberana e lançamento da nota final.</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <span style="color: ${hasAccepted ? '#16a34a' : '#94a3b8'}; font-weight: bold; font-size: 1rem;">✔</span>
+              <span><strong>Sigilo e Privacidade:</strong> Aceitou que as gravações e transcrições destinam-se exclusivamente a finalidades acadêmicas e didáticas da disciplina.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Digital Verification Stamp -->
+        <div style="background: ${hasAccepted ? '#f0fdf4' : '#fffbeb'}; border: 1px dashed ${hasAccepted ? '#86efac' : '#fde68a'}; border-radius: 8px; padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <div style="font-size: 0.7rem; font-weight: 700; color: ${hasAccepted ? '#166534' : '#92400e'}; text-transform: uppercase;">
+              🛡️ Código de Autenticação Digital
+            </div>
+            <div style="font-family: monospace; font-size: 0.9rem; font-weight: 700; color: ${hasAccepted ? '#15803d' : '#b45309'}; letter-spacing: 0.05em;">
+              ${code}
+            </div>
+          </div>
+          <div style="font-size: 0.75rem; color: ${hasAccepted ? '#166534' : '#92400e'}; text-align: right;">
+            ${hasAccepted ? 'Documento eletrônico autenticado e armazenado' : 'Aguardando confirmação do aluno no sistema'}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    body.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: var(--danger);">
+        <p>Erro ao carregar comprovante: ${escapeHtml(err.message)}</p>
+        <button class="btn btn-outline btn-sm" onclick="openTcleProofModal(${userId}, '${studentName}', '${registration}')">Tentar Novamente</button>
+      </div>
+    `;
+  }
+}
+window.openTcleProofModal = openTcleProofModal;
+
+function closeTcleProofModal() {
+  const modal = document.getElementById('modal-tcle-proof');
+  if (modal) modal.style.display = 'none';
+}
+window.closeTcleProofModal = closeTcleProofModal;
+
+function printTcleCertificate() {
+  window.print();
+}
+window.printTcleCertificate = printTcleCertificate;
 
 async function handleResetExam(userId, studentName) {
   if (!confirm(`Deseja realmente RESETAR a prova do(a) aluno(a) "${studentName}"?\n\nAs respostas e a nota serão apagadas e o aluno poderá realizar a prova novamente do zero com novo sorteio de questões.`)) {

@@ -438,12 +438,23 @@ async function getStudentsList() {
     pairHistory = JSON.parse(raw);
   } catch (e) {}
 
+  let consents = {};
+  try {
+    const rawConsents = await getSetting('tcle_consents', '{}');
+    consents = JSON.parse(rawConsents);
+  } catch (e) {
+    consents = {};
+  }
+
   return (students || []).map(s => {
     const exam = Array.isArray(s.student_exams) ? s.student_exams[0] : (s.student_exams || null);
 
     // Find pair info if any
     const pair = pairHistory.slice().reverse().find(p => p.studentIds && p.studentIds.includes(s.id));
     const pair_label = pair ? pair.studentNames : null;
+
+    // Find TCLE info
+    const tcle = consents[s.id] || (s.registration ? consents[s.registration] : null);
 
     return {
       user_id: s.id,
@@ -455,7 +466,10 @@ async function getStudentsList() {
       total_score: exam ? exam.total_score : null,
       submitted_at: exam ? exam.submitted_at : null,
       graded_at: exam ? exam.graded_at : null,
-      pair_label
+      pair_label,
+      tcle_accepted: !!(tcle && tcle.accepted),
+      tcle_accepted_at: tcle && tcle.acceptedAt ? tcle.acceptedAt : null,
+      tcle_verification_code: tcle && tcle.verificationCode ? tcle.verificationCode : (tcle && tcle.accepted ? `TCLE-${s.id}-${s.registration}` : null)
     };
   });
 }
@@ -536,12 +550,16 @@ async function saveTcleConsent(userId, accepted, studentData = {}) {
   const reg = user ? user.registration : (studentData.registration || '');
   const name = user ? user.full_name : (studentData.fullName || 'Aluno');
 
+  const verificationCode = `TCLE-DOC-${finalId}-${Date.now().toString(36).toUpperCase()}`;
   const consentRecord = {
     accepted: !!accepted,
     acceptedAt: new Date().toISOString(),
     userId: finalId,
     registration: reg,
-    fullName: name
+    fullName: name,
+    verificationCode,
+    discipline: 'Estágio em Clínica odontológica integrada infantil I',
+    teacher: 'Patricia Drummond'
   };
 
   // Key by both finalId and registration for maximum resilience
@@ -555,20 +573,27 @@ async function saveTcleConsent(userId, accepted, studentData = {}) {
 }
 
 /**
- * Check if a student has accepted the digital TCLE consent
+ * Retrieve TCLE consent record for a student
  */
-async function hasUserAcceptedTcle(userId, registration = null) {
+async function getStudentTcle(userId, registration = null) {
   const raw = await getSetting('tcle_consents', '{}');
   let consents = {};
   try { consents = JSON.parse(raw); } catch (e) { consents = {}; }
 
-  if (consents[userId] && consents[userId].accepted) return true;
-  if (registration && consents[registration] && consents[registration].accepted) return true;
-
+  let record = consents[userId] || null;
+  if (!record && registration) record = consents[registration] || null;
   const numId = parseInt(userId);
-  if (!isNaN(numId) && consents[numId] && consents[numId].accepted) return true;
+  if (!record && !isNaN(numId)) record = consents[numId] || null;
 
-  return false;
+  return record;
+}
+
+/**
+ * Check if a student has accepted the digital TCLE consent
+ */
+async function hasUserAcceptedTcle(userId, registration = null) {
+  const record = await getStudentTcle(userId, registration);
+  return !!(record && record.accepted);
 }
 
 async function getDashboardStats() {
@@ -733,5 +758,6 @@ module.exports = {
   getTeacherUser,
   updateTeacherProfile,
   saveTcleConsent,
+  getStudentTcle,
   hasUserAcceptedTcle
 };

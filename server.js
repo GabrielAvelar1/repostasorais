@@ -548,6 +548,35 @@ app.delete('/api/admin/student/:userId', requireTeacher, async (req, res) => {
   }
 });
 
+// Get TCLE proof certificate for student
+app.get('/api/admin/student/:userId/tcle', requireTeacher, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const user = await dbService.getUserById(userId);
+    if (!user) return res.status(404).json({ error: 'Aluno não encontrado.' });
+
+    const tcle = await dbService.getStudentTcle(userId, user.registration);
+    const teacher = await dbService.getTeacherUser();
+
+    res.json({
+      student: {
+        id: user.id,
+        fullName: user.full_name,
+        registration: user.registration,
+        createdAt: user.created_at
+      },
+      hasAccepted: !!(tcle && tcle.accepted),
+      acceptedAt: tcle ? tcle.acceptedAt : null,
+      verificationCode: tcle && tcle.verificationCode ? tcle.verificationCode : (tcle && tcle.accepted ? `TCLE-DOC-${user.id}-${user.registration}` : null),
+      discipline: 'Estágio em Clínica odontológica integrada infantil I',
+      teacherName: teacher ? teacher.full_name : 'Patricia Drummond'
+    });
+  } catch (err) {
+    console.error('Error fetching student TCLE:', err);
+    res.status(500).json({ error: 'Erro ao consultar comprovante do TCLE.' });
+  }
+});
+
 // Reset entire system (clears all students, exams, and grades for a fresh exam session)
 app.post('/api/admin/reset-system', requireTeacher, async (req, res) => {
   try {
