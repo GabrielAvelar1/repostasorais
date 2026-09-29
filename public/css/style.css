@@ -258,9 +258,17 @@ body {
 }
 
 .btn-sm {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.875rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
   border-radius: 6px;
+}
+
+.btn-xs {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+  border-radius: 5px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 /* Badges */
@@ -506,8 +514,8 @@ body {
 .question-review-card {
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.35rem;
+  margin-bottom: 1.25rem;
   background: #ffffff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
@@ -516,8 +524,30 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.review-question-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.5;
+  margin-top: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.review-ai-score-pill {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  background: #e0f2fe;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid #bae6fd;
 }
 
 .review-score-badge {
@@ -530,8 +560,8 @@ body {
 }
 
 .review-block {
-  margin-top: 1rem;
-  padding: 1rem 1.25rem;
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
   border-radius: 8px;
 }
 
@@ -539,127 +569,131 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 /* Student Answer Box - Highlighted & Spacious */
 .review-student {
-  background: #eff6ff;
-  border: 1.5px solid #bfdbfe;
-  border-left: 6px solid #0284c7;
-  border-radius: 10px;
-  padding: 1.15rem 1.25rem;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.08);
+  background: #f0f7ff;
+  border: 1.5px solid #bae6fd;
+  border-left: 5px solid #0284c7;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 .review-student-text {
   background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 1.1rem 1.25rem;
-  font-size: 1.05rem;
-  line-height: 1.65;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  font-size: 1.1rem;
+  line-height: 1.7;
   color: #0f172a;
-  min-height: 90px;
+  font-weight: 500;
+  min-height: 80px;
   white-space: pre-wrap;
   word-break: break-word;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .review-expected {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-left: 5px solid #16a34a;
+  border-left: 4px solid #16a34a;
   border-radius: 8px;
-  padding: 0.9rem 1.1rem;
+  padding: 0.75rem 1rem;
+  margin-top: 0.6rem;
+  margin-bottom: 0.6rem;
 }
 
 .review-expected-text {
   margin-top: 0.35rem;
-  font-size: 0.95rem;
-  line-height: 1.55;
-  color: #166534;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #14532d;
+  font-weight: 500;
   white-space: pre-wrap;
 }
 
 .review-feedback {
   background: #fffbeb;
   border: 1px solid #fde68a;
-  border-left: 5px solid #d97706;
+  border-left: 4px solid #d97706;
   border-radius: 8px;
-  padding: 0.9rem 1.1rem;
+  padding: 0.75rem 1rem;
+  margin-top: 0.6rem;
+  margin-bottom: 0.6rem;
 }
 
 .review-feedback-text {
   margin-top: 0.35rem;
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-size: 1.02rem;
+  line-height: 1.6;
   color: #78350f;
   white-space: pre-wrap;
 }
 
-/* Teacher Grading Section */
+/* Teacher Grading Section - Compact, Sleek, Unobtrusive */
 .review-teacher-box {
   background: #f8fafc;
-  border: 1.5px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 1.25rem;
-  margin-top: 1.25rem;
+  padding: 0.75rem 0.85rem;
+  margin-top: 0.85rem;
 }
 
-.review-teacher-header {
-  font-weight: 700;
-  color: var(--primary-dark);
-  margin-bottom: 0.75rem;
+.review-teacher-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.review-teacher-score-group {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.review-teacher-fields {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.review-field-score {
-  width: 150px;
-}
-
-.review-field-score label,
-.review-field-feedback label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-main);
-  display: block;
-  margin-bottom: 0.35rem;
-}
-
-.review-field-score input {
+.review-teacher-score-group label {
+  font-size: 0.82rem;
   font-weight: 700;
-  font-size: 1.2rem;
-  color: var(--primary-dark);
-  text-align: center;
+  color: #334155;
+  margin: 0;
+  white-space: nowrap;
 }
 
-.review-field-feedback {
-  flex: 1;
-  min-width: 260px;
+.review-score-input {
+  width: 75px !important;
+  height: 34px !important;
+  font-weight: 800 !important;
+  font-size: 1.1rem !important;
+  color: var(--primary-dark) !important;
+  text-align: center !important;
+  padding: 0.2rem 0.4rem !important;
+  border-radius: 6px !important;
 }
 
-.review-field-feedback textarea {
-  font-size: 0.95rem;
-  line-height: 1.5;
-  min-height: 80px;
+.review-teacher-mini-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.review-field-action {
-  padding-top: 1.5rem;
+.review-teacher-comment-group textarea {
+  width: 100% !important;
+  min-height: 48px !important;
+  height: 48px !important;
+  font-size: 0.88rem !important;
+  line-height: 1.4 !important;
+  padding: 0.4rem 0.6rem !important;
+  border-radius: 6px !important;
+  resize: vertical !important;
+}
 }
 
 /* Admin Dashboard */
@@ -866,18 +900,21 @@ body {
   .admin-actions-bar {
     flex-direction: column !important;
     align-items: stretch !important;
-    padding: 1rem !important;
-    gap: 0.75rem !important;
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
   }
 
   .admin-btn-group {
     width: 100% !important;
     flex-direction: column !important;
+    gap: 0.4rem !important;
   }
 
   .admin-btn-group .btn {
     width: 100% !important;
     justify-content: center !important;
+    padding: 0.45rem 0.8rem !important;
+    font-size: 0.85rem !important;
   }
 
   /* Table becomes responsive card list without ANY horizontal scrolling */
@@ -946,16 +983,26 @@ body {
 
   .action-btn-group {
     display: flex !important;
-    flex-direction: column !important;
-    gap: 0.5rem !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
     width: 100% !important;
+    justify-content: flex-start !important;
   }
 
   .action-btn-group .btn {
-    width: 100% !important;
+    width: auto !important;
+    padding: 0.35rem 0.6rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+  }
+
+  .action-btn-group .btn-action-review {
+    flex: 1 1 100% !important;
     justify-content: center !important;
-    padding: 0.65rem 1rem !important;
-    font-size: 0.9rem !important;
+    padding: 0.42rem 0.75rem !important;
+    font-size: 0.85rem !important;
   }
 
   /* Modal on mobile */
@@ -976,7 +1023,27 @@ body {
     width: 100% !important;
   }
 
-  /* Mobile Review Modal Optimization - Expands boxes and eliminates cramped spacing */
+  /* Specific Review Modal Footer on Mobile: Compact Horizontal Row! */
+  .review-modal-footer {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.35rem !important;
+    padding: 0.45rem 0.75rem !important;
+    background: #f8fafc !important;
+  }
+
+  .review-modal-footer .btn {
+    width: auto !important;
+    flex: 1 1 auto !important;
+    padding: 0.38rem 0.55rem !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+
+  /* Mobile Review Modal Optimization - Reading text takes center stage */
   #modal-review.modal-overlay {
     padding: 0 !important;
   }
@@ -993,129 +1060,121 @@ body {
   }
 
   #modal-review .modal-header {
-    padding: 0.85rem 1rem !important;
+    padding: 0.55rem 0.85rem !important;
     position: sticky;
     top: 0;
     z-index: 25;
     background: #ffffff;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #modal-review .modal-title {
+    font-size: 1.05rem !important;
   }
 
   #modal-review .review-sticky-bar {
-    padding: 0.65rem 0.85rem !important;
-    flex-wrap: wrap !important;
-    gap: 0.5rem !important;
-  }
-
-  #modal-review .review-sticky-bar > div:first-child {
-    flex-wrap: wrap !important;
-    gap: 0.4rem !important;
+    padding: 0.35rem 0.75rem !important;
+    min-height: 38px !important;
+    background: #f8fafc !important;
+    border-bottom: 1px solid var(--border) !important;
   }
 
   #modal-review .modal-body {
-    padding: 0.65rem 0.5rem !important;
+    padding: 0.6rem 0.5rem !important;
     flex: 1 !important;
   }
 
   .question-review-card {
-    padding: 1rem 0.75rem !important;
-    margin-bottom: 1.25rem !important;
-    border-radius: 10px !important;
+    padding: 0.85rem 0.75rem !important;
+    margin-bottom: 0.85rem !important;
+    border-radius: 8px !important;
   }
 
   .review-item-header {
     flex-direction: column !important;
-    gap: 0.5rem !important;
+    gap: 0.35rem !important;
+    margin-bottom: 0.6rem !important;
   }
 
-  .review-ai-score-badge-wrap {
-    text-align: left !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    background: #f1f5f9;
-    padding: 0.4rem 0.75rem;
-    border-radius: 6px;
-    width: 100%;
+  .review-question-title {
+    font-size: 1.12rem !important;
+    line-height: 1.45 !important;
+    font-weight: 700 !important;
   }
 
-  /* STUDENT ANSWER BOX OCCUPIES GENEROUS MOBILE SPACE */
+  /* STUDENT ANSWER BOX OCCUPIES GENEROUS MOBILE SPACE WITH LARGE CLEAR TEXT */
   .review-student {
-    padding: 1rem 0.85rem !important;
-    margin-top: 0.85rem !important;
-    margin-bottom: 1rem !important;
-    width: 100% !important;
-    border-radius: 10px !important;
-  }
-
-  .review-student-text {
-    padding: 1rem 0.85rem !important;
-    font-size: 1.05rem !important;
-    line-height: 1.65 !important;
-    min-height: 120px !important; /* Generous, expansive height on mobile */
+    padding: 0.75rem 0.85rem !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.65rem !important;
     width: 100% !important;
     border-radius: 8px !important;
   }
 
-  .review-expected,
-  .review-feedback {
-    padding: 0.85rem 0.85rem !important;
+  .review-student-text {
+    padding: 0.8rem 0.85rem !important;
+    font-size: 1.1rem !important;
+    line-height: 1.65 !important;
+    min-height: 85px !important;
     width: 100% !important;
+    border-radius: 6px !important;
   }
 
-  .review-expected-text,
-  .review-feedback-text {
-    font-size: 0.95rem !important;
+  .review-expected,
+  .review-feedback {
+    padding: 0.7rem 0.85rem !important;
+    width: 100% !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .review-expected-text {
+    font-size: 1.02rem !important;
     line-height: 1.55 !important;
   }
 
-  /* Teacher editing controls stack cleanly and comfortably on mobile */
-  .review-teacher-box {
-    padding: 1rem 0.85rem !important;
-  }
-
-  .review-teacher-fields {
-    flex-direction: column !important;
-    gap: 0.85rem !important;
-  }
-
-  .review-field-score {
-    width: 100% !important;
-  }
-
-  .review-field-score input {
-    width: 100% !important;
-    height: 48px !important;
-    font-size: 1.3rem !important;
-    text-align: center !important;
-  }
-
-  .review-field-feedback {
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-
-  .review-field-feedback textarea {
-    width: 100% !important;
-    min-height: 110px !important;
-    font-size: 1rem !important; /* 16px to prevent iOS auto-zoom */
-  }
-
-  .review-field-action {
-    width: 100% !important;
-    padding-top: 0 !important;
-  }
-
-  .review-field-action .btn-save-answer {
-    width: 100% !important;
-    padding: 0.75rem !important;
+  .review-feedback-text {
     font-size: 1rem !important;
-    justify-content: center !important;
+    line-height: 1.55 !important;
   }
 
-  .btn-copy-ai {
-    width: 100% !important;
-    justify-content: center !important;
-    padding: 0.45rem 0.75rem !important;
+  /* Teacher editing controls: Compact, discreet, does NOT push reading text away */
+  .review-teacher-box {
+    padding: 0.65rem 0.75rem !important;
+    margin-top: 0.65rem !important;
+  }
+
+  .review-teacher-top-row {
+    margin-bottom: 0.35rem !important;
+    gap: 0.5rem !important;
+  }
+
+  .review-teacher-score-group label {
+    font-size: 0.8rem !important;
+  }
+
+  .review-score-input {
+    width: 70px !important;
+    height: 32px !important;
+    font-size: 1.05rem !important;
+  }
+
+  .review-teacher-mini-actions {
+    display: flex !important;
+    gap: 0.35rem !important;
+  }
+
+  .review-teacher-mini-actions .btn {
+    width: auto !important;
+    padding: 0.28rem 0.55rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .review-teacher-comment-group textarea {
+    min-height: 46px !important;
+    height: 46px !important;
+    font-size: 0.85rem !important;
+    padding: 0.35rem 0.55rem !important;
   }
 }
 

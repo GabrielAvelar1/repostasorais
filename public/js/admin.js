@@ -670,18 +670,18 @@ function renderStudentsTable() {
 
     const isDraft = s.exam_status === 'draft';
     const actionBtns = `
-      <div class="action-btn-group" style="display: inline-flex; gap: 0.35rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+      <div class="action-btn-group">
         ${s.exam_id ? `
-          <button class="btn btn-outline btn-sm" style="color: #0284c7; border-color: #38bdf8; background: #f0f9ff; font-weight: 700;" onclick="openLiveQuestionsModal(${s.exam_id})" title="${isDraft ? 'Acompanhar perguntas sorteadas e transcrição ao vivo' : 'Ver perguntas sorteadas e gabarito da prova'}">
-            📖 ${isDraft ? 'Acompanhar Perguntas' : 'Ver Perguntas'}
-          </button>
-          <button class="btn btn-primary btn-sm" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">
+          <button class="btn btn-primary btn-sm btn-action-review" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">
             👁️ Ver Respostas & IA
           </button>
-        ` : '<span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.3rem;">(Aguardando aluno)</span>'}
-        <button class="btn btn-outline btn-sm" style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Ver comprovante oficial do Termo de Consentimento (TCLE) aceito pelo aluno">📜 Ver TCLE</button>
-        ${s.exam_id ? `<button class="btn btn-outline btn-sm" style="color: #b45309; border-color: #fde68a;" onclick="handleResetExam(${s.user_id}, '${escapedName}')" title="Zerar a prova deste aluno para ele refazer">🔄 Resetar Prova</button>` : ''}
-        <button class="btn btn-outline btn-sm" style="color: #b91c1c; border-color: #fecaca;" onclick="handleDeleteStudent(${s.user_id}, '${escapedName}')" title="Remover aluno da turma">🗑️ Excluir</button>
+          <button class="btn btn-outline btn-sm btn-action-compact" style="color: #0284c7; border-color: #38bdf8; background: #f0f9ff; font-weight: 600;" onclick="openLiveQuestionsModal(${s.exam_id})" title="${isDraft ? 'Acompanhar perguntas sorteadas e transcrição ao vivo' : 'Ver perguntas sorteadas e gabarito da prova'}">
+            📖 ${isDraft ? 'Acompanhar' : 'Perguntas'}
+          </button>
+        ` : '<span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.25rem;">(Sem prova)</span>'}
+        <button class="btn btn-outline btn-sm btn-action-compact" style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Ver comprovante oficial do TCLE">📜 TCLE</button>
+        ${s.exam_id ? `<button class="btn btn-outline btn-sm btn-action-compact" style="color: #b45309; border-color: #fde68a;" onclick="handleResetExam(${s.user_id}, '${escapedName}')" title="Zerar a prova deste aluno para ele refazer">🔄 Resetar</button>` : ''}
+        <button class="btn btn-outline btn-sm btn-action-compact" style="color: #b91c1c; border-color: #fecaca;" onclick="handleDeleteStudent(${s.user_id}, '${escapedName}')" title="Remover aluno da turma">🗑️ Excluir</button>
       </div>
     `;
 
@@ -924,91 +924,94 @@ async function openReviewModal(examId) {
 
       return `
         <div class="question-review-card">
+          <!-- QUESTION HEADER -->
           <div class="review-item-header">
-            <div>
-              <span class="badge badge-primary">Questão ${idx + 1} de 5</span>
-              <h4 style="margin-top: 0.35rem; font-size: 1.05rem;">${escapeHtml(a.question)}</h4>
-            </div>
-            <div class="review-ai-score-badge-wrap">
-              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Nota Sugerida IA:</span>
-              <strong style="color: var(--primary); font-size: 1.15rem;">${a.ai_score !== null ? Number(a.ai_score).toFixed(1) : '-'} / 5.0</strong>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span class="badge badge-primary" style="font-size: 0.8rem; padding: 0.2rem 0.6rem;">Questão ${idx + 1} de 5</span>
+                <span class="review-ai-score-pill">
+                  Nota Sugerida IA: <strong>${a.ai_score !== null ? Number(a.ai_score).toFixed(1) : '-'} / 5.0</strong>
+                </span>
+              </div>
+              <h4 class="review-question-title">${escapeHtml(a.question)}</h4>
             </div>
           </div>
 
-          <!-- Student Answer (Prominent, High-Legibility, Expanded) -->
+          <!-- 1. RESPOSTA DO ALUNO (PRINCIPAL FOCO DE LEITURA) -->
           <div class="review-block review-student">
             <div class="review-block-header">
-              <strong style="color: #0369a1; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+              <strong style="color: #0369a1; font-size: 0.95rem; display: flex; align-items: center; gap: 0.35rem;">
                 🗣️ Resposta Transcrita do Aluno (Áudio):
               </strong>
-              <span class="badge badge-primary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Áudio</span>
+              <span class="badge badge-primary" style="font-size: 0.7rem; padding: 0.15rem 0.45rem;">Áudio</span>
             </div>
-            <div class="review-student-text">${escapeHtml(a.student_answer || '[Nenhuma resposta gravada]')}</div>
+            <div class="review-student-text">${escapeHtml(a.student_answer || '[Nenhuma resposta gravada pelo aluno]')}</div>
           </div>
 
-          <!-- Expected Answer -->
+          <!-- 2. GABARITO DA PROFESSORA -->
           <div class="review-block review-expected">
-            <strong style="color: #15803d; font-size: 0.92rem;">📚 Resposta Esperada (Gabarito da Professora):</strong>
+            <div class="review-block-header">
+              <strong style="color: #15803d; font-size: 0.92rem;">📚 Resposta Esperada (Gabarito da Professora):</strong>
+            </div>
             <div class="review-expected-text">${escapeHtml(a.expected_answer)}</div>
           </div>
 
-          <!-- AI Feedback -->
+          <!-- 3. ANÁLISE DA IA -->
           ${a.ai_feedback ? `
             <div class="review-block review-feedback">
-              <strong style="color: #b45309; font-size: 0.92rem;">🤖 Correção e Justificativa Gerada pela IA:</strong>
+              <div class="review-block-header">
+                <strong style="color: #b45309; font-size: 0.92rem;">🤖 Análise e Justificativa Gerada pela IA:</strong>
+              </div>
               <div id="ai-feedback-text-${a.answer_id}" class="review-feedback-text">${escapeHtml(a.ai_feedback)}</div>
             </div>
           ` : ''}
 
-          <!-- Teacher Score & Feedback Customization -->
+          <!-- 4. CONTROLE DE NOTA DA PROFESSORA (COMPACTO E DISCRETO) -->
           <div class="review-teacher-box">
-            <div class="review-teacher-header">
-              <span>✏️ Nota Oficial e Correção da Professora Patricia:</span>
-              ${a.ai_feedback ? `
-                <button 
-                  type="button" 
-                  class="btn btn-outline btn-sm btn-copy-ai" 
-                  onclick="copyAiCorrectionToTeacher(${a.answer_id})"
-                  title="Copiar o texto da IA para este campo para você editar"
-                >
-                  📋 Usar texto da IA como base
-                </button>
-              ` : ''}
-            </div>
-            
-            <div class="review-teacher-fields">
-              <div class="review-field-score">
-                <label>Nota Oficial (0 a 5.0):</label>
+            <div class="review-teacher-top-row">
+              <div class="review-teacher-score-group">
+                <label for="score-input-${a.answer_id}">Nota Oficial (0 a 5.0):</label>
                 <input 
                   type="number" 
                   step="0.1" 
                   min="0" 
                   max="5.0" 
                   id="score-input-${a.answer_id}" 
-                  class="form-control" 
+                  class="form-control review-score-input" 
                   value="${currentScore}"
                   oninput="updateLiveModalAverage()"
                 >
               </div>
 
-              <div class="review-field-feedback">
-                <label>Comentário / Correção da Professora:</label>
-                <textarea 
-                  id="feedback-input-${a.answer_id}" 
-                  class="form-control" 
-                  rows="3" 
-                  placeholder="Você pode modificar a correção feita pela IA ou escrever suas considerações para o aluno..."
-                >${escapeHtml(feedback)}</textarea>
-              </div>
-
-              <div class="review-field-action">
+              <div class="review-teacher-mini-actions">
+                ${a.ai_feedback ? `
+                  <button 
+                    type="button" 
+                    class="btn btn-outline btn-xs" 
+                    onclick="copyAiCorrectionToTeacher(${a.answer_id})"
+                    title="Copiar o texto da IA para o campo de comentários"
+                  >
+                    📋 Usar Texto IA
+                  </button>
+                ` : ''}
                 <button 
-                  class="btn btn-primary btn-sm btn-save-answer" 
+                  type="button"
+                  class="btn btn-primary btn-xs" 
                   onclick="saveAnswerGrade(${a.answer_id})"
+                  title="Salvar apenas a nota desta questão"
                 >
-                  💾 Salvar Esta Questão
+                  💾 Salvar
                 </button>
               </div>
+            </div>
+            
+            <div class="review-teacher-comment-group">
+              <textarea 
+                id="feedback-input-${a.answer_id}" 
+                class="form-control review-feedback-textarea" 
+                rows="2" 
+                placeholder="Comentário da professora para o aluno (opcional)..."
+              >${escapeHtml(feedback)}</textarea>
             </div>
           </div>
         </div>
