@@ -403,6 +403,7 @@ function setupEventListeners() {
   studentAnswerInput.addEventListener('input', () => {
     if (questions[currentQuestionIndex]) {
       questions[currentQuestionIndex].student_answer = studentAnswerInput.value;
+      textBeforeCurrentRecording = studentAnswerInput.value.trim();
       updateStepsUI();
       scheduleAutoSave();
     }
@@ -766,6 +767,7 @@ function renderCurrentQuestion() {
   currentQIndexEl.textContent = currentQuestionIndex + 1;
   questionTextEl.textContent = q.question;
   studentAnswerInput.value = q.student_answer || '';
+  textBeforeCurrentRecording = (q.student_answer || '').trim();
 
   // Nav buttons visibility
   btnPrevQ.style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
@@ -797,6 +799,7 @@ let restartRecognitionTimer = null;
 let lastRecordedBlob = null;
 let lastRecordedMimeType = 'audio/webm';
 let lastRecordedTargetIdx = 0;
+let textBeforeCurrentRecording = '';
 
 const recordingTimerEl = document.getElementById('recording-timer');
 const audioPreviewContainer = document.getElementById('audio-preview-container');
@@ -842,28 +845,43 @@ async function requestTranscription(audioBlob, mimeType, targetIdx) {
         if (data.transcript && data.transcript.trim()) {
           const transcribed = data.transcript.trim();
           if (questions[targetIdx]) {
-            const existing = (questions[targetIdx].student_answer || '').trim();
+            // Retrieve whatever was already in the field before this recording session
+            let base = (textBeforeCurrentRecording !== undefined && textBeforeCurrentRecording !== null)
+              ? textBeforeCurrentRecording.trim()
+              : '';
+
+            // Fallback: If textBeforeCurrentRecording was not set, check questions or studentAnswerInput
+            if (!base) {
+              base = ((currentQuestionIndex === targetIdx && studentAnswerInput)
+                ? studentAnswerInput.value
+                : (questions[targetIdx].student_answer || '')).trim();
+            }
+
             let newText = '';
-            if (!existing) {
-              newText = transcribed;
-            } else if (existing.toLowerCase().includes(transcribed.toLowerCase())) {
-              newText = existing;
-            } else if (transcribed.toLowerCase().includes(existing.toLowerCase())) {
+            if (!base) {
               newText = transcribed;
             } else {
-              newText = `${existing} ${transcribed}`;
+              // Append newly transcribed text without erasing previous speech/text
+              if (base.endsWith(transcribed)) {
+                newText = base;
+              } else {
+                newText = `${base} ${transcribed}`;
+              }
             }
 
             questions[targetIdx].student_answer = newText;
-            if (currentQuestionIndex === targetIdx) {
+            if (currentQuestionIndex === targetIdx && studentAnswerInput) {
               studentAnswerInput.value = newText;
               studentAnswerInput.dispatchEvent(new Event('input'));
             }
+            // Update textBeforeCurrentRecording so subsequent recordings build on top
+            textBeforeCurrentRecording = newText;
+
             updateStepsUI();
             scheduleAutoSave();
           }
-          speechStatus.textContent = '✅ Áudio transcrito com sucesso pela IA! Você pode editar o texto se quiser.';
-          showToast('✅ Áudio transcrito com sucesso!');
+          speechStatus.textContent = '✅ Áudio transcrito com sucesso pela IA! Você pode gravar mais áudios para complementar ou editar o texto se quiser.';
+          showToast('✅ Áudio transcrito e adicionado à resposta!');
         } else {
           speechStatus.innerHTML = `⚠️ O áudio foi gravado com sucesso, mas a IA não transcreveu a fala. <button id="btn-retry-transcribe-inline" class="btn btn-outline btn-sm" type="button" style="margin-left: 0.4rem; padding: 0.2rem 0.6rem; font-size: 0.8rem; font-weight: 700; color: #0284c7; border-color: #38bdf8; background: #f0f9ff; cursor: pointer;">🔄 Transcrever Novamente</button>`;
           const btnRetry = document.getElementById('btn-retry-transcribe-inline');
@@ -895,6 +913,7 @@ function setupMobileAudioFallback() {
   mobileMicInput.addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
+    textBeforeCurrentRecording = (studentAnswerInput ? studentAnswerInput.value : '').trim();
     requestTranscription(file, file.type || 'audio/mp4', currentQuestionIndex);
   });
 }
@@ -916,7 +935,7 @@ function setupSpeechRecognition() {
     let baseTranscript = '';
 
     recognition.onstart = () => {
-      baseTranscript = studentAnswerInput.value.trim();
+      baseTranscript = textBeforeCurrentRecording || (studentAnswerInput ? studentAnswerInput.value.trim() : '');
       if (baseTranscript.length > 0) baseTranscript += ' ';
     };
 
@@ -973,6 +992,9 @@ function setupSpeechRecognition() {
 
 async function startRecording() {
   try {
+    // Preserve current text in the box so new audio is appended without erasing previous speech/text
+    textBeforeCurrentRecording = (studentAnswerInput ? studentAnswerInput.value : '').trim();
+
     // 1. Request microphone access
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       if (mobileMicInput) {
