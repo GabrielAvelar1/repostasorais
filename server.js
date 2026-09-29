@@ -495,8 +495,8 @@ app.get('/api/admin/exam/:id', requireTeacher, async (req, res) => {
 
     let answers = await dbService.getExamAnswers(examId);
 
-    // If submitted or any question has no AI grade yet, ensure it is graded now
-    if (exam.status === 'submitted' || answers.some(a => a.ai_score === null || a.ai_score === undefined)) {
+    // If submitted or any question has no AI grade yet, ensure it is graded now (only if exam is not draft)
+    if (exam.status !== 'draft' && (exam.status === 'submitted' || answers.some(a => a.ai_score === null || a.ai_score === undefined))) {
       try {
         await gradeExam(examId);
         const { data: refreshed } = await dbService.supabase
@@ -534,6 +534,45 @@ app.get('/api/admin/exam/:id', requireTeacher, async (req, res) => {
   } catch (err) {
     console.error('Error fetching exam detail:', err);
     res.status(500).json({ error: 'Erro ao carregar detalhes do exame.' });
+  }
+});
+
+// Get live questions and draft answers for teacher to follow along with students
+app.get('/api/admin/exam/:id/live-questions', requireTeacher, async (req, res) => {
+  try {
+    const examId = parseInt(req.params.id);
+    const { data: exam, error } = await dbService.supabase
+      .from('student_exams')
+      .select('*, users(full_name, registration)')
+      .eq('id', examId)
+      .single();
+
+    if (error || !exam) return res.status(404).json({ error: 'Exame não encontrado.' });
+
+    const answers = await dbService.getExamAnswers(examId);
+    const pairInfo = await dbService.getExamPairInfo(examId);
+
+    res.json({
+      exam: {
+        id: exam.id,
+        status: exam.status,
+        submittedAt: exam.submitted_at,
+        full_name: pairInfo ? `${pairInfo.studentNames} (Dupla/Grupo)` : (exam.users?.full_name || 'Aluno'),
+        registration: pairInfo ? 'Dupla' : (exam.users?.registration || ''),
+        isPair: !!pairInfo,
+        pairNames: pairInfo ? pairInfo.studentNames : null
+      },
+      questions: answers.map(a => ({
+        order_num: a.order_num,
+        question_id: a.question_id,
+        question: a.question,
+        expected_answer: a.expected_answer,
+        student_answer: a.student_answer || ''
+      }))
+    });
+  } catch (err) {
+    console.error('Error fetching live questions:', err);
+    res.status(500).json({ error: 'Erro ao carregar perguntas da prova.' });
   }
 });
 

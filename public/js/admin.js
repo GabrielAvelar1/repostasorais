@@ -6,6 +6,8 @@ let currentUser = null;
 let studentsList = [];
 let activeReviewExamId = null;
 let currentModalAnswers = [];
+let activeLiveExamId = null;
+let liveQuestionsInterval = null;
 
 // DOM Elements
 const statTotalStudents = document.getElementById('stat-total-students');
@@ -61,8 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
   loadDashboardData();
   loadStudents();
   loadWaitingStudents();
-  // Poll waiting queue every 4 seconds to show arriving students in real-time
-  setInterval(loadWaitingStudents, 4000);
+  // Poll waiting queue and students every 5 seconds to show active exams and arrivals in real-time
+  setInterval(() => {
+    loadWaitingStudents();
+    loadStudents();
+  }, 5000);
 });
 
 // -------------------------------------------------------------
@@ -588,9 +593,30 @@ async function loadStudents() {
     const res = await fetch('/api/admin/students', { headers: getAdminHeaders() });
     studentsList = await res.json();
     renderStudentsTable();
+    updateActiveExamBanner();
   } catch (err) {
     console.error('Error fetching students:', err);
     studentsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Erro ao carregar alunos.</td></tr>`;
+  }
+}
+
+function updateActiveExamBanner() {
+  const banner = document.getElementById('active-exam-banner');
+  const namesSpan = document.getElementById('active-exam-pair-names');
+  const btnOpen = document.getElementById('btn-open-active-questions');
+  if (!banner) return;
+
+  const activeStudent = studentsList.find(s => s.exam_id && s.exam_status === 'draft');
+  if (activeStudent) {
+    banner.style.display = 'block';
+    if (namesSpan) {
+      namesSpan.textContent = activeStudent.pair_label || activeStudent.full_name;
+    }
+    if (btnOpen) {
+      btnOpen.onclick = () => openLiveQuestionsModal(activeStudent.exam_id);
+    }
+  } else {
+    banner.style.display = 'none';
   }
 }
 
@@ -642,9 +668,17 @@ function renderStudentsTable() {
       tcleBadge = `<button class="btn btn-outline btn-sm" style="color: #d97706; border-color: #fde68a; background: #fffbeb; font-size: 0.8rem; padding: 0.25rem 0.55rem; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Aluno ainda não aceitou o TCLE">⏳ Pendente</button>`;
     }
 
+    const isDraft = s.exam_status === 'draft';
     const actionBtns = `
       <div class="action-btn-group" style="display: inline-flex; gap: 0.35rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
-        ${s.exam_id ? `<button class="btn btn-primary btn-sm" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">👁️ Ver Respostas & IA</button>` : '<span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.3rem;">(Aguardando aluno)</span>'}
+        ${s.exam_id ? `
+          <button class="btn btn-outline btn-sm" style="color: #0284c7; border-color: #38bdf8; background: #f0f9ff; font-weight: 700;" onclick="openLiveQuestionsModal(${s.exam_id})" title="${isDraft ? 'Acompanhar perguntas sorteadas e transcrição ao vivo' : 'Ver perguntas sorteadas e gabarito da prova'}">
+            📖 ${isDraft ? 'Acompanhar Perguntas' : 'Ver Perguntas'}
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">
+            👁️ Ver Respostas & IA
+          </button>
+        ` : '<span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.3rem;">(Aguardando aluno)</span>'}
         <button class="btn btn-outline btn-sm" style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Ver comprovante oficial do Termo de Consentimento (TCLE) aceito pelo aluno">📜 Ver TCLE</button>
         ${s.exam_id ? `<button class="btn btn-outline btn-sm" style="color: #b45309; border-color: #fde68a;" onclick="handleResetExam(${s.user_id}, '${escapedName}')" title="Zerar a prova deste aluno para ele refazer">🔄 Resetar Prova</button>` : ''}
         <button class="btn btn-outline btn-sm" style="color: #b91c1c; border-color: #fecaca;" onclick="handleDeleteStudent(${s.user_id}, '${escapedName}')" title="Remover aluno da turma">🗑️ Excluir</button>
@@ -1066,3 +1100,166 @@ function escapeHtml(text) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// -------------------------------------------------------------
+// LIVE QUESTIONS MODAL (ACOMPANHAMENTO AO VIVO DAS PERGUNTAS)
+// -------------------------------------------------------------
+async function openLiveQuestionsModal(examId) {
+  activeLiveExamId = examId;
+  const modal = document.getElementById('modal-live-questions');
+  const body = document.getElementById('modal-live-q-body');
+
+  if (!modal || !body) return;
+  modal.style.display = 'flex';
+
+  body.innerHTML = `
+    <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📖</div>
+      <p style="font-size: 1rem;">Carregando perguntas sorteadas da prova...</p>
+    </div>
+  `;
+
+  await loadLiveQuestionsData(examId);
+
+  if (liveQuestionsInterval) clearInterval(liveQuestionsInterval);
+  liveQuestionsInterval = setInterval(() => {
+    if (activeLiveExamId === examId && modal.style.display !== 'none') {
+      loadLiveQuestionsData(examId, true);
+    }
+  }, 4000);
+}
+window.openLiveQuestionsModal = openLiveQuestionsModal;
+
+async function loadLiveQuestionsData(examId, isSilent = false) {
+  const body = document.getElementById('modal-live-q-body');
+  const meta = document.getElementById('modal-live-q-meta');
+  const badge = document.getElementById('modal-live-q-badge');
+  const timer = document.getElementById('modal-live-q-timer');
+
+  try {
+    const res = await fetch(`/api/admin/exam/${examId}/live-questions`, {
+      headers: getAdminHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao carregar perguntas');
+
+    const exam = data.exam;
+    const questions = data.questions || [];
+
+    if (meta) {
+      meta.textContent = `${exam.full_name} | Prova #${exam.id}`;
+    }
+
+    if (badge) {
+      if (exam.status === 'draft') {
+        badge.className = 'badge badge-warning';
+        badge.textContent = '🎙️ Prova em Andamento (Ao Vivo)';
+      } else if (exam.status === 'submitted') {
+        badge.className = 'badge badge-primary';
+        badge.textContent = 'Enviada pelos Alunos';
+      } else if (exam.status === 'graded') {
+        badge.className = 'badge badge-success';
+        badge.textContent = 'Avaliação Concluída';
+      } else {
+        badge.className = 'badge badge-gray';
+        badge.textContent = exam.status;
+      }
+    }
+
+    if (timer) {
+      timer.textContent = `Última atualização: ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    }
+
+    if (questions.length === 0) {
+      body.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+          Nenhuma questão encontrada para este exame.
+        </div>
+      `;
+      return;
+    }
+
+    body.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        ${questions.map((q, idx) => {
+          const num = q.order_num || (idx + 1);
+          const hasAnswer = !!(q.student_answer && q.student_answer.trim().length > 0);
+
+          return `
+            <div style="background: #ffffff; border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span class="badge badge-primary" style="font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.65rem;">
+                    Questão ${num} de ${questions.length}
+                  </span>
+                </div>
+                <div>
+                  ${hasAnswer 
+                    ? `<span class="badge badge-success" style="font-size: 0.75rem; font-weight: 700;">✅ Resposta Transcrita</span>`
+                    : `<span class="badge badge-gray" style="font-size: 0.75rem;">⏳ Aguardando Aluno Falar...</span>`
+                  }
+                </div>
+              </div>
+
+              <!-- Question Enunciado -->
+              <div style="margin-bottom: 0.85rem;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Enunciado da Pergunta:</div>
+                <div style="font-size: 1.05rem; font-weight: 600; color: var(--text-main); line-height: 1.5; background: #fafafa; padding: 0.75rem 1rem; border-radius: 6px; border-left: 4px solid #0284c7;">
+                  ${escapeHtml(q.question)}
+                </div>
+              </div>
+
+              <!-- Expected Answer / Teacher Answer Key -->
+              <div style="margin-bottom: 0.85rem; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; padding: 0.75rem 1rem;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: #0f766e; text-transform: uppercase; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.35rem;">
+                  🔑 <span>Gabarito de Referência (Resposta Esperada da Professora):</span>
+                </div>
+                <div style="font-size: 0.95rem; color: #334155; line-height: 1.5; white-space: pre-wrap;">
+                  ${escapeHtml(q.expected_answer || 'Não especificada no banco de questões.')}
+                </div>
+              </div>
+
+              <!-- Student Transcribed Live Answer -->
+              <div style="background: ${hasAnswer ? '#f0fdf4' : '#fffbeb'}; border-radius: 6px; border: 1px solid ${hasAnswer ? '#bbf7d0' : '#fef3c7'}; padding: 0.75rem 1rem;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: ${hasAnswer ? '#15803d' : '#b45309'}; text-transform: uppercase; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.35rem;">
+                  🎙️ <span>Transcrição da Resposta do Aluno:</span>
+                </div>
+                <div style="font-size: 0.95rem; color: ${hasAnswer ? '#166534' : '#92400e'}; line-height: 1.5; font-style: ${hasAnswer ? 'normal' : 'italic'}; white-space: pre-wrap;">
+                  ${hasAnswer ? escapeHtml(q.student_answer) : 'O aluno ainda não gravou resposta para esta questão.'}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  } catch (err) {
+    if (!isSilent) {
+      body.innerHTML = `
+        <div style="color: var(--danger); text-align: center; padding: 2rem;">
+          Erro ao carregar perguntas: ${escapeHtml(err.message)}
+        </div>
+      `;
+    }
+  }
+}
+
+function refreshLiveQuestions() {
+  if (activeLiveExamId) {
+    loadLiveQuestionsData(activeLiveExamId);
+    showToast('🔄 Perguntas e transcrições atualizadas!');
+  }
+}
+window.refreshLiveQuestions = refreshLiveQuestions;
+
+function closeLiveQuestionsModal() {
+  const modal = document.getElementById('modal-live-questions');
+  if (modal) modal.style.display = 'none';
+  if (liveQuestionsInterval) {
+    clearInterval(liveQuestionsInterval);
+    liveQuestionsInterval = null;
+  }
+  activeLiveExamId = null;
+}
+window.closeLiveQuestionsModal = closeLiveQuestionsModal;
+
