@@ -873,8 +873,10 @@ async function openReviewModal(examId) {
     const { exam, answers } = data;
     currentModalAnswers = answers || [];
 
-    modalReviewStudentName.textContent = `Aluno: ${exam.full_name}`;
-    modalReviewStudentMeta.textContent = `Matrícula: ${exam.registration} | Status: ${exam.status.toUpperCase()} | Enviado em: ${exam.submitted_at ? new Date(exam.submitted_at).toLocaleString('pt-BR') : '-'}`;
+    modalReviewStudentName.textContent = exam.isPair ? `Dupla / Grupo: ${exam.full_name}` : `Aluno: ${exam.full_name}`;
+    modalReviewStudentMeta.textContent = exam.isPair
+      ? `Avaliação Compartilhada (Nota válida para a dupla) | Status: ${exam.status.toUpperCase()} | Enviado em: ${exam.submitted_at ? new Date(exam.submitted_at).toLocaleString('pt-BR') : '-'}`
+      : `Matrícula: ${exam.registration} | Status: ${exam.status.toUpperCase()} | Enviado em: ${exam.submitted_at ? new Date(exam.submitted_at).toLocaleString('pt-BR') : '-'}`;
     
     const initialScoreText = exam.total_score !== null && exam.total_score !== undefined
       ? `${Number(exam.total_score).toFixed(1)} / 5.0`

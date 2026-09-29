@@ -121,8 +121,48 @@ async function getAllQuestions() {
 /**
  * Exams
  */
+async function getStudentPairInfo(userId) {
+  try {
+    const rawPairs = await getSetting('pair_history', '[]');
+    const pairs = JSON.parse(rawPairs);
+    const numId = parseInt(userId);
+    return pairs.slice().reverse().find(p => p.studentIds && (p.studentIds.includes(userId) || p.studentIds.includes(numId))) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function getExamPairInfo(examId) {
+  try {
+    const rawPairs = await getSetting('pair_history', '[]');
+    const pairs = JSON.parse(rawPairs);
+    const numId = parseInt(examId);
+    return pairs.slice().reverse().find(p => p.examId === numId || p.examId === examId) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function getStudentExam(userId) {
-  const { data } = await supabase.from('student_exams').select('*').eq('user_id', userId).maybeSingle();
+  const numId = parseInt(userId);
+
+  // 1. Check if user is part of an active pair in pair_history that has a shared examId
+  try {
+    const pair = await getStudentPairInfo(numId);
+    if (pair && pair.examId) {
+      const { data: sharedExam } = await supabase
+        .from('student_exams')
+        .select('*')
+        .eq('id', pair.examId)
+        .maybeSingle();
+      if (sharedExam) return sharedExam;
+    }
+  } catch (e) {
+    console.warn('Error finding pair exam:', e);
+  }
+
+  // 2. Direct lookup fallback by user_id
+  const { data } = await supabase.from('student_exams').select('*').eq('user_id', numId || userId).maybeSingle();
   return data;
 }
 
@@ -155,66 +195,70 @@ async function createStudentExamWithRandomQuestions(userId) {
 }
 
 /**
- * Create exams for a pair of students with the EXACT SAME 5 questions
+ * Create a single shared exam for a pair/trio/individual with the EXACT SAME 5 questions.
+ * Only ONE student needs to answer and submit; the answers and final grade are shared by all members.
  */
 async function createPairExams(studentIds) {
   if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
     throw new Error('Nenhum aluno selecionado para a prova.');
   }
 
-  // 1. Pick 5 random questions ONCE for the entire pair!
+  // 1. Pick 5 random questions ONCE for the entire pair/group!
   const allQ = await getAllQuestions();
   const shuffled = [...allQ].sort(() => 0.5 - Math.random());
   const selected5 = shuffled.slice(0, 5);
 
-  const createdExams = [];
-
+  // 2. Clean up any previous exams/answers for these students first
   for (const userId of studentIds) {
-    // If student already has an unfinished/old exam, clean it up first
     const existing = await getStudentExam(userId);
     if (existing) {
       await supabase.from('exam_answers').delete().eq('exam_id', existing.id);
       await supabase.from('student_exams').delete().eq('id', existing.id);
     }
-
-    // Create fresh exam in 'draft'
-    const { data: exam, error: examErr } = await supabase
-      .from('student_exams')
-      .insert({ user_id: userId, status: 'draft' })
-      .select()
-      .single();
-    if (examErr) throw examErr;
-
-    // Insert identical 5 questions in the exact same order
-    const rows = selected5.map((q, idx) => ({
-      exam_id: exam.id,
-      question_id: q.id,
-      order_num: idx + 1,
-      student_answer: ''
-    }));
-
-    const { error: ansErr } = await supabase.from('exam_answers').insert(rows);
-    if (ansErr) throw ansErr;
-
-    createdExams.push(exam);
   }
 
-  // Save pair session in settings for history / dashboard display
-  try {
-    const existingPairsStr = await getSetting('pair_history', '[]');
-    let pairs = [];
-    try { pairs = JSON.parse(existingPairsStr); } catch (e) { pairs = []; }
+  // 3. Create ONE shared exam record in student_exams (primary user_id is the first student)
+  const primaryUserId = studentIds[0];
+  const { data: exam, error: examErr } = await supabase
+    .from('student_exams')
+    .insert({ user_id: primaryUserId, status: 'draft' })
+    .select()
+    .single();
+  if (examErr) throw examErr;
 
+  // 4. Insert the 5 questions once for this shared exam
+  const rows = selected5.map((q, idx) => ({
+    exam_id: exam.id,
+    question_id: q.id,
+    order_num: idx + 1,
+    student_answer: ''
+  }));
+
+  const { error: ansErr } = await supabase.from('exam_answers').insert(rows);
+  if (ansErr) throw ansErr;
+
+  // 5. Save pair session in settings for pair mapping and history
+  let names = '';
+  try {
     const { data: usersData } = await supabase
       .from('users')
       .select('id, full_name, registration')
       .in('id', studentIds);
 
-    const names = (usersData || []).map(u => u.full_name).join(' & ');
+    const idMap = new Map((usersData || []).map(u => [u.id, u.full_name]));
+    names = studentIds.map(id => idMap.get(id) || `Aluno ${id}`).join(' & ');
+
+    const existingPairsStr = await getSetting('pair_history', '[]');
+    let pairs = [];
+    try { pairs = JSON.parse(existingPairsStr); } catch (e) { pairs = []; }
+
+    // Remove any previous active pair entry for any of these students
+    pairs = pairs.filter(p => !p.studentIds || !p.studentIds.some(id => studentIds.includes(Number(id))));
 
     pairs.push({
       pairId: Date.now().toString(),
-      studentIds,
+      studentIds: studentIds.map(Number),
+      examId: exam.id,
       studentNames: names,
       questionIds: selected5.map(q => q.id),
       createdAt: new Date().toISOString()
@@ -225,7 +269,7 @@ async function createPairExams(studentIds) {
     console.warn('Could not record pair history:', e.message);
   }
 
-  return { success: true, count: createdExams.length, exams: createdExams };
+  return { success: true, count: studentIds.length, examId: exam.id, pairNames: names };
 }
 
 async function getExamAnswers(examId) {
@@ -446,12 +490,19 @@ async function getStudentsList() {
     consents = {};
   }
 
-  return (students || []).map(s => {
-    const exam = Array.isArray(s.student_exams) ? s.student_exams[0] : (s.student_exams || null);
+  // Fetch all exams once to quickly resolve shared pair exams
+  const { data: allExams } = await supabase.from('student_exams').select('*');
+  const allExamsMap = new Map((allExams || []).map(e => [e.id, e]));
 
+  return (students || []).map(s => {
     // Find pair info if any
-    const pair = pairHistory.slice().reverse().find(p => p.studentIds && p.studentIds.includes(s.id));
+    const pair = pairHistory.slice().reverse().find(p => p.studentIds && (p.studentIds.includes(s.id) || p.studentIds.includes(Number(s.id))));
     const pair_label = pair ? pair.studentNames : null;
+
+    let exam = Array.isArray(s.student_exams) && s.student_exams.length > 0 ? s.student_exams[0] : (s.student_exams || null);
+    if ((!exam || !exam.id) && pair && pair.examId) {
+      exam = allExamsMap.get(pair.examId) || null;
+    }
 
     // Find TCLE info
     const tcle = consents[s.id] || (s.registration ? consents[s.registration] : null);
@@ -476,7 +527,7 @@ async function getStudentsList() {
 
 /**
  * Fetch all students currently waiting for permission/pair approval
- * (Only students who have accepted the TCLE digital consent appear in the queue)
+ * (Only students who have accepted the TCLE digital consent and are not in an active exam appear in the queue)
  */
 async function getWaitingStudentsList() {
   const { data: students, error } = await supabase
@@ -504,11 +555,32 @@ async function getWaitingStudentsList() {
     consents = {};
   }
 
+  let pairHistory = [];
+  try {
+    const rawPairs = await getSetting('pair_history', '[]');
+    pairHistory = JSON.parse(rawPairs);
+  } catch (e) {
+    pairHistory = [];
+  }
+
+  const { data: allExams } = await supabase.from('student_exams').select('id');
+  const existingExamIds = new Set((allExams || []).map(e => e.id));
+
+  // Set of student IDs who are part of an active pair exam
+  const activePairStudentIds = new Set();
+  pairHistory.forEach(p => {
+    if (p.examId && existingExamIds.has(p.examId) && Array.isArray(p.studentIds)) {
+      p.studentIds.forEach(id => activePairStudentIds.add(Number(id)));
+    }
+  });
+
   return (students || []).filter(s => {
-    const exam = Array.isArray(s.student_exams) ? s.student_exams[0] : (s.student_exams || null);
-    // Student is waiting only if they accepted the TCLE AND do not have an active or completed exam
-    const hasConsent = !!(consents[s.id] && consents[s.id].accepted);
-    return hasConsent && (!exam || !exam.id);
+    const exam = Array.isArray(s.student_exams) && s.student_exams.length > 0 ? s.student_exams[0] : (s.student_exams || null);
+    const hasConsent = !!(consents[s.id] && consents[s.id].accepted) || !!(s.registration && consents[s.registration] && consents[s.registration].accepted);
+    const hasDirectExam = !!(exam && exam.id && existingExamIds.has(exam.id));
+    const hasPairExam = activePairStudentIds.has(Number(s.id));
+
+    return hasConsent && !hasDirectExam && !hasPairExam;
   }).map(s => ({
     user_id: s.id,
     registration: s.registration,
@@ -597,17 +669,10 @@ async function hasUserAcceptedTcle(userId, registration = null) {
 }
 
 async function getDashboardStats() {
-  const { count: totalStudents } = await supabase
-    .from('users')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'student');
-
-  const { data: exams } = await supabase
-    .from('student_exams')
-    .select('status, total_score');
-
-  const submitted = (exams || []).filter(e => ['submitted', 'grading', 'graded'].includes(e.status)).length;
-  const graded = (exams || []).filter(e => e.status === 'graded');
+  const students = await getStudentsList();
+  const totalStudents = students.length;
+  const submitted = students.filter(s => ['submitted', 'grading', 'graded'].includes(s.exam_status)).length;
+  const graded = students.filter(s => s.exam_status === 'graded');
   const gradedCount = graded.length;
 
   let avgScore = 0;
@@ -623,7 +688,7 @@ async function getDashboardStats() {
     examOpen,
     gradesReleased,
     stats: {
-      totalStudents: totalStudents || 0,
+      totalStudents,
       totalSubmitted: submitted,
       totalGraded: gradedCount,
       averageScore: avgScore
@@ -633,18 +698,46 @@ async function getDashboardStats() {
 
 /**
  * Reset a student's exam (removes answers and exam record so they can start fresh)
+ * If the student is part of a pair, resets the shared pair exam and clears the pair.
  */
 async function resetStudentExam(userId) {
-  const { data: exam } = await supabase
+  const numId = parseInt(userId);
+
+  // Check if student belongs to a pair with shared examId
+  let sharedExamId = null;
+  try {
+    const rawPairs = await getSetting('pair_history', '[]');
+    let pairs = JSON.parse(rawPairs);
+    const pairIndex = pairs.slice().reverse().findIndex(p => p.studentIds && (p.studentIds.includes(userId) || p.studentIds.includes(numId)));
+    if (pairIndex !== -1) {
+      const actualIndex = pairs.length - 1 - pairIndex;
+      sharedExamId = pairs[actualIndex].examId;
+      // Remove this pair from pair_history
+      pairs.splice(actualIndex, 1);
+      await setSetting('pair_history', JSON.stringify(pairs));
+    }
+  } catch (e) {
+    console.warn('Error clearing pair during reset:', e);
+  }
+
+  // Delete answers and exam
+  if (sharedExamId) {
+    await supabase.from('exam_answers').delete().eq('exam_id', sharedExamId);
+    await supabase.from('student_exams').delete().eq('id', sharedExamId);
+  }
+
+  // Also check if there was any direct exam by userId
+  const { data: directExam } = await supabase
     .from('student_exams')
     .select('id')
-    .eq('user_id', userId)
+    .eq('user_id', numId)
     .maybeSingle();
 
-  if (exam) {
-    await supabase.from('exam_answers').delete().eq('exam_id', exam.id);
-    await supabase.from('student_exams').delete().eq('id', exam.id);
+  if (directExam) {
+    await supabase.from('exam_answers').delete().eq('exam_id', directExam.id);
+    await supabase.from('student_exams').delete().eq('id', directExam.id);
   }
+
   return true;
 }
 
@@ -759,5 +852,7 @@ module.exports = {
   updateTeacherProfile,
   saveTcleConsent,
   getStudentTcle,
-  hasUserAcceptedTcle
+  hasUserAcceptedTcle,
+  getStudentPairInfo,
+  getExamPairInfo
 };

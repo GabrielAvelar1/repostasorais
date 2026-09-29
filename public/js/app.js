@@ -12,6 +12,7 @@ let isRecording = false;
 let isTranscribing = false;
 let autoSaveTimer = null;
 let statusPollingInterval = null;
+let partnerWatchInterval = null;
 
 function setTranscribingState(transcribing) {
   isTranscribing = transcribing;
@@ -544,19 +545,57 @@ async function loadStudentFlow() {
     currentExam = data.exam;
     questions = data.questions || [];
 
+    // Pair info banner in exam screen
+    const pairBanner = document.getElementById('pair-info-banner');
+    const pairNamesEl = document.getElementById('pair-members-names');
+    if (pairBanner && pairNamesEl) {
+      if (currentExam.pairNames) {
+        pairNamesEl.textContent = currentExam.pairNames;
+        pairBanner.style.display = 'block';
+      } else {
+        pairBanner.style.display = 'none';
+      }
+    }
+
     if (currentExam.status === 'draft') {
       showView(viewExam);
       currentQuestionIndex = 0;
       renderSteps();
       renderCurrentQuestion();
+      startPartnerSubmissionWatch();
     } else {
       // Exam is submitted or graded
+      clearInterval(partnerWatchInterval);
       checkGradesRelease();
     }
   } catch (err) {
     console.error('Flow error:', err);
     showToast('Erro ao carregar dados da prova.');
   }
+}
+
+// Watch in background if the partner submits the exam while this student has it open
+function startPartnerSubmissionWatch() {
+  clearInterval(partnerWatchInterval);
+  partnerWatchInterval = setInterval(async () => {
+    if (!currentUser || !currentExam || currentExam.status !== 'draft') {
+      clearInterval(partnerWatchInterval);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/exam/my-exam?userId=${currentUser.id}`, {
+        headers: { 'x-user-id': currentUser.id }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.exam && data.exam.status !== 'draft') {
+          clearInterval(partnerWatchInterval);
+          showToast('🎉 A prova foi enviada pela sua dupla!');
+          loadStudentFlow();
+        }
+      }
+    } catch (e) {}
+  }, 4000);
 }
 
 // Poll until teacher approves the pair exam
@@ -594,6 +633,18 @@ async function checkGradesRelease(manualClick = false) {
 
     if (!data.gradesReleased) {
       showView(viewSubmitted);
+
+      // Render pair banner in submitted view
+      const subPairBanner = document.getElementById('submitted-pair-banner');
+      const subPairNames = document.getElementById('submitted-pair-names');
+      if (subPairBanner && subPairNames) {
+        if (data.pairNames) {
+          subPairNames.textContent = data.pairNames;
+          subPairBanner.style.display = 'block';
+        } else {
+          subPairBanner.style.display = 'none';
+        }
+      }
 
       // Render student's submitted answers without questions or scores
       const submittedContainer = document.getElementById('submitted-answers-container');
@@ -1098,6 +1149,16 @@ async function saveDraftNow() {
 function renderResults(data) {
   const totalScoreEl = document.getElementById('results-total-score');
   const questionsListEl = document.getElementById('results-questions-list');
+  const pairLabelEl = document.getElementById('results-pair-label');
+
+  if (pairLabelEl) {
+    if (data.pairNames) {
+      pairLabelEl.textContent = `👥 Nota da Dupla: ${data.pairNames}`;
+      pairLabelEl.style.display = 'inline-block';
+    } else {
+      pairLabelEl.style.display = 'none';
+    }
+  }
 
   const formattedScore = data.totalScore !== null && data.totalScore !== undefined
     ? Number(data.totalScore).toFixed(1)

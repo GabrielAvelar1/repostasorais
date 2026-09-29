@@ -160,12 +160,16 @@ app.get('/api/exam/my-exam', async (req, res) => {
     // Fetch questions and student's draft answers
     const answers = await dbService.getExamAnswers(exam.id);
 
+    // Fetch pair info if any
+    const pairInfo = await dbService.getStudentPairInfo(userId);
+
     res.json({
       exam: {
         id: exam.id,
         status: exam.status,
         submittedAt: exam.submitted_at,
-        isExamOpen
+        isExamOpen,
+        pairNames: pairInfo ? pairInfo.studentNames : null
       },
       questions: answers.map(a => ({
         answer_id: a.answer_id,
@@ -217,6 +221,17 @@ app.post('/api/exam/save-draft', async (req, res) => {
       return res.status(400).json({ error: 'Dados inválidos.' });
     }
 
+    // Check if already submitted by partner
+    const { data: currentExam } = await dbService.supabase
+      .from('student_exams')
+      .select('status')
+      .eq('id', examId)
+      .maybeSingle();
+
+    if (currentExam && currentExam.status !== 'draft') {
+      return res.json({ success: true, message: 'Prova já finalizada.', alreadySubmitted: true });
+    }
+
     await dbService.saveDraftAnswers(examId, answers);
     res.json({ success: true, message: 'Rascunho salvo.' });
   } catch (err) {
@@ -230,6 +245,20 @@ app.post('/api/exam/submit', async (req, res) => {
   try {
     const { examId, answers } = req.body;
     if (!examId) return res.status(400).json({ error: 'ID do exame obrigatório.' });
+
+    // Check if already submitted by partner
+    const { data: currentExam } = await dbService.supabase
+      .from('student_exams')
+      .select('status')
+      .eq('id', examId)
+      .maybeSingle();
+
+    if (currentExam && currentExam.status !== 'draft') {
+      return res.json({
+        success: true,
+        message: 'Prova oral finalizada e enviada com sucesso!'
+      });
+    }
 
     await dbService.submitExam(examId, answers);
 
@@ -266,12 +295,16 @@ app.get('/api/exam/my-result', async (req, res) => {
       return res.json({ status: 'draft', message: 'Você ainda não finalizou sua prova.' });
     }
 
+    const pairInfo = await dbService.getStudentPairInfo(userId);
+    const pairNames = pairInfo ? pairInfo.studentNames : null;
+
     if (!gradesReleased) {
       const rawAnswers = await dbService.getExamAnswers(exam.id);
       return res.json({
         status: exam.status,
         gradesReleased: false,
         submittedAt: exam.submitted_at,
+        pairNames,
         message: 'Sua prova foi enviada e está sendo revisada pela Professora Patricia. As notas serão liberadas para toda a turma em breve.',
         myAnswers: rawAnswers.map((a, i) => ({
           order_num: a.order_num || (i + 1),
@@ -289,6 +322,7 @@ app.get('/api/exam/my-result', async (req, res) => {
       totalScore: exam.total_score,
       submittedAt: exam.submitted_at,
       gradedAt: exam.graded_at,
+      pairNames,
       questions: answers.map(a => ({
         answer_id: a.answer_id,
         order_num: a.order_num,
@@ -480,6 +514,9 @@ app.get('/api/admin/exam/:id', requireTeacher, async (req, res) => {
       }
     }
 
+    // Get pair info if this is a shared pair exam
+    const pairInfo = await dbService.getExamPairInfo(examId);
+
     res.json({
       exam: {
         id: exam.id,
@@ -487,8 +524,10 @@ app.get('/api/admin/exam/:id', requireTeacher, async (req, res) => {
         status: exam.status,
         total_score: exam.total_score,
         submitted_at: exam.submitted_at,
-        full_name: exam.users?.full_name,
-        registration: exam.users?.registration
+        full_name: pairInfo ? `${pairInfo.studentNames} (Dupla/Grupo)` : (exam.users?.full_name || 'Aluno'),
+        registration: pairInfo ? 'Avaliação Compartilhada' : (exam.users?.registration || ''),
+        isPair: !!pairInfo,
+        pairNames: pairInfo ? pairInfo.studentNames : null
       },
       answers
     });
