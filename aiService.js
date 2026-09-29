@@ -57,12 +57,16 @@ function markKeyExhausted(key, durationMs = 60000) {
 function getGeminiApiKeys() {
   const allKeys = [];
 
-  // Free keys (Key 1, Key 2, or comma-separated list)
+  // Free keys (Key 1, Key 2, Key 3, Key 4, Key 5, GEMINI_API_KEY, or comma-separated list)
   const free1 = process.env.FREE_GEMINI_API_KEY || '';
   const free2 = process.env.FREE_GEMINI_API_KEY_2 || '';
+  const free3 = process.env.FREE_GEMINI_API_KEY_3 || '';
+  const free4 = process.env.FREE_GEMINI_API_KEY_4 || '';
+  const free5 = process.env.FREE_GEMINI_API_KEY_5 || '';
+  const geminiDefault = process.env.GEMINI_API_KEY || '';
   const freeExtra = process.env.FREE_GEMINI_API_KEYS ? process.env.FREE_GEMINI_API_KEYS.split(',') : [];
 
-  const freeList = [free1, free2, ...freeExtra]
+  const freeList = [free1, free2, free3, free4, free5, geminiDefault, ...freeExtra]
     .map(k => k.trim())
     .filter(Boolean);
 
@@ -74,9 +78,10 @@ function getGeminiApiKeys() {
   // Paid keys
   const paid1 = process.env.PAID_GEMINI_API_KEY || '';
   const paid2 = process.env.PAID_GEMINI_API_KEY_2 || '';
+  const paid3 = process.env.PAID_GEMINI_API_KEY_3 || '';
   const paidExtra = process.env.PAID_GEMINI_API_KEYS ? process.env.PAID_GEMINI_API_KEYS.split(',') : [];
 
-  const paidList = [paid1, paid2, ...paidExtra]
+  const paidList = [paid1, paid2, paid3, ...paidExtra]
     .map(k => k.trim())
     .filter(Boolean);
 
@@ -378,12 +383,16 @@ function gradeWithHeuristic(answers) {
  */
 async function testAIConnection(apiKey, provider = 'gemini') {
   if (provider === 'gemini') {
-    const candidateModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const keyToUse = apiKey || (getGeminiApiKeys()[0]?.key);
+    if (!keyToUse) {
+      throw new Error('Nenhuma chave Gemini configurada no sistema.');
+    }
+    const candidateModels = ['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
     let lastErr = null;
 
     for (const m of candidateModels) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${keyToUse}`;
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -393,7 +402,7 @@ async function testAIConnection(apiKey, provider = 'gemini') {
         });
         if (res.ok) {
           const data = await res.json();
-          setSetting('ai_model', m);
+          try { await dbService.setSetting('ai_model', m); } catch (e) {}
           return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Conexão OK!';
         } else {
           lastErr = await res.text();
@@ -521,6 +530,7 @@ module.exports = {
   enqueueExamGrading,
   gradeExam,
   testAIConnection,
-  transcribeAudio
+  transcribeAudio,
+  getGeminiApiKeys
 };
 
