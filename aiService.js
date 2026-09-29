@@ -34,11 +34,28 @@ async function processQueue() {
   isProcessingQueue = false;
 }
 
+// In-memory key cooldown tracker to prevent wasting time on 429 exhausted keys
+const keyCooldowns = new Map();
+
+function isKeyCoolingDown(key) {
+  const until = keyCooldowns.get(key);
+  if (!until) return false;
+  if (Date.now() > until) {
+    keyCooldowns.delete(key);
+    return false;
+  }
+  return true;
+}
+
+function markKeyExhausted(key, durationMs = 60000) {
+  keyCooldowns.set(key, Date.now() + durationMs);
+}
+
 /**
  * Get configured Gemini API keys (Free first, then Paid)
  */
 function getGeminiApiKeys() {
-  const keys = [];
+  const allKeys = [];
 
   // Free keys (Key 1, Key 2, or comma-separated list)
   const free1 = process.env.FREE_GEMINI_API_KEY || '';
@@ -51,7 +68,7 @@ function getGeminiApiKeys() {
 
   const uniqueFree = [...new Set(freeList)];
   uniqueFree.forEach((k, idx) => {
-    keys.push({ type: `Gratuito #${idx + 1}`, key: k });
+    allKeys.push({ type: `Gratuito #${idx + 1}`, key: k });
   });
 
   // Paid keys
@@ -65,23 +82,42 @@ function getGeminiApiKeys() {
 
   const uniquePaid = [...new Set(paidList)];
   uniquePaid.forEach((k, idx) => {
-    keys.push({ type: `Pago #${idx + 1}`, key: k });
+    allKeys.push({ type: `Pago #${idx + 1}`, key: k });
   });
 
-  return keys;
+  // Prioritize keys that are not cooling down
+  const activeKeys = allKeys.filter(k => !isKeyCoolingDown(k.key));
+  if (activeKeys.length > 0) {
+    return activeKeys;
+  }
+
+  // If all keys are marked cooling down, reset cooldowns and retry all
+  keyCooldowns.clear();
+  return allKeys;
 }
+
+let currentKeyIndex = 0;
 
 /**
  * Execute Gemini call with fallback from free key to paid key
  */
 async function callGeminiWithFallback(fn) {
   const keys = getGeminiApiKeys();
-  let lastError = null;
+  if (!keys || keys.length === 0) {
+    throw new Error('Nenhuma chave Gemini configurada');
+  }
 
-  for (const item of keys) {
+  let lastError = null;
+  const startIndex = currentKeyIndex % keys.length;
+
+  for (let i = 0; i < keys.length; i++) {
+    const idx = (startIndex + i) % keys.length;
+    const item = keys[idx];
     try {
       console.log(`[AI] Executando com plano ${item.type}...`);
       const result = await fn(item.key);
+      // Remember this working key for subsequent requests so they are fast
+      currentKeyIndex = idx;
       return result;
     } catch (err) {
       lastError = err;
@@ -122,7 +158,14 @@ async function gradeExam(examId) {
  * Grade all 5 questions in a single request with Google Gemini API
  */
 async function gradeWithGemini(answers, apiKey) {
-  const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-2.5-flash'];
+  const candidateModels = [
+    'gemini-flash-lite-latest',
+    'gemini-3.1-flash-lite',
+    'gemini-3.7-flash',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
+    'gemini-3.8-flash'
+  ];
   const prompt = buildEvaluationPrompt(answers);
   let lastErr = null;
 
@@ -139,7 +182,8 @@ async function gradeWithGemini(answers, apiKey) {
             responseMimeType: "application/json",
             temperature: 0.2
           }
-        })
+        }),
+        signal: AbortSignal.timeout(12000)
       });
 
       if (response.ok) {
@@ -151,14 +195,16 @@ async function gradeWithGemini(answers, apiKey) {
       } else {
         const errText = await response.text();
         lastErr = new Error(`Gemini ${model} error ${response.status}: ${errText.substring(0, 120)}`);
-        // If quota exceeded or service unavailable, immediately switch to next key
-        if (response.status === 429 || response.status === 503) {
+        // If quota exceeded, mark key exhausted and immediately switch to next key
+        if (response.status === 429) {
+          markKeyExhausted(apiKey);
           throw lastErr;
         }
       }
     } catch (mErr) {
       lastErr = mErr;
-      if (mErr.message.includes('429') || mErr.message.includes('503')) {
+      if (mErr.message && (mErr.message.includes('429') || mErr.message.includes('quota'))) {
+        markKeyExhausted(apiKey);
         throw mErr;
       }
     }
@@ -393,13 +439,12 @@ async function transcribeAudio(base64Data, mimeType = 'audio/webm') {
     cleanMime = 'audio/webm';
   }
 
-  // Tested candidate models supporting audio multimodal inputs
+  // Active models supporting audio multimodal inputs, ordered by speed and availability
   const candidateModels = [
-    'gemini-flash-latest',
-    'gemini-3.8-flash',
-    'gemini-3.7-flash',
-    'gemini-3.6-flash',
-    'gemini-2.5-flash'
+    'gemini-flash-lite-latest',
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-3.7-flash'
   ];
 
   try {
@@ -424,7 +469,7 @@ async function transcribeAudio(base64Data, mimeType = 'audio/webm') {
                       }
                     },
                     {
-                      text: 'Você é um assistente especialista de transcrição para alunos de odontologia. Transcreva fielmente as palavras faladas no áudio em português do Brasil. Retorne estritamente o texto falado, sem aspas, sem introduções e sem explicações.'
+                      text: 'Você é um assistente especialista de transcrição para alunos de odontologia da Faculdade Arnaldo. Transcreva com máxima precisão e fidelidade todas as palavras faladas no áudio em português do Brasil. Se o aluno falar termos técnicos odontológicos (como cárie, pulpectomia, decíduo, endodontia, restauração, resina, amálgama, cimento de ionômero de vidro, etc.), transcreva-os corretamente. Retorne estritamente o texto falado pelo aluno, sem adicionar aspas, sem introdução, sem explicações e sem saudações.'
                     }
                   ]
                 }
@@ -432,7 +477,8 @@ async function transcribeAudio(base64Data, mimeType = 'audio/webm') {
               generationConfig: {
                 temperature: 0.1
               }
-            })
+            }),
+            signal: AbortSignal.timeout(5500)
           });
 
           if (res.ok) {
@@ -446,10 +492,20 @@ async function transcribeAudio(base64Data, mimeType = 'audio/webm') {
             const errText = await res.text();
             console.warn(`[Transcription] Modelo ${model} falhou com status ${res.status}: ${errText.substring(0, 100)}`);
             lastErr = new Error(`Model ${model} status ${res.status}`);
+            // If quota exceeded on this key, immediately throw to switch to the next key
+            if (res.status === 429) {
+              markKeyExhausted(apiKey);
+              throw lastErr;
+            }
           }
         } catch (mErr) {
           console.warn(`[Transcription] Exceção com modelo ${model}:`, mErr.message);
           lastErr = mErr;
+          const isQuota = mErr.message && (mErr.message.includes('429') || mErr.message.includes('quota'));
+          if (isQuota) {
+            markKeyExhausted(apiKey, 45000);
+            throw mErr;
+          }
         }
       }
 

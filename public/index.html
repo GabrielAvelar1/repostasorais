@@ -206,7 +206,12 @@
           Clique no botão acima e fale sua resposta. Funciona no computador e no celular.
         </div>
         <div id="audio-preview-container" style="display: none; margin-top: 0.5rem; width: 100%; text-align: center;">
-          <audio id="audio-preview" controls style="max-width: 320px; height: 36px;"></audio>
+          <div style="display: inline-flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: center; background: #f8fafc; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <audio id="audio-preview" controls style="max-width: 280px; height: 36px;"></audio>
+            <button id="btn-retranscribe-audio" class="btn btn-outline btn-sm" type="button" style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff; font-weight: 600; font-size: 0.8rem; padding: 0.35rem 0.65rem;" title="Pedir para a IA transcrever este áudio gravado novamente">
+              🔄 Transcrever Áudio Novamente
+            </button>
+          </div>
         </div>
         <!-- Hidden input for iOS Safari / Mobile fallback without HTTPS -->
         <input type="file" id="mobile-mic-input" accept="audio/*" capture="microphone" style="display: none;">

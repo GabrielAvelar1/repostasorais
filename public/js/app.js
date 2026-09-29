@@ -388,6 +388,17 @@ function setupEventListeners() {
     }
   });
 
+  const btnRetranscribeAudio = document.getElementById('btn-retranscribe-audio');
+  if (btnRetranscribeAudio) {
+    btnRetranscribeAudio.addEventListener('click', () => {
+      if (lastRecordedBlob) {
+        requestTranscription(lastRecordedBlob, lastRecordedMimeType, currentQuestionIndex);
+      } else {
+        showToast('Grave uma resposta por voz primeiro.');
+      }
+    });
+  }
+
   // Input editing & auto-save trigger
   studentAnswerInput.addEventListener('input', () => {
     if (questions[currentQuestionIndex]) {
@@ -779,74 +790,108 @@ let recordedChunks = [];
 let recordingSeconds = 0;
 let recordingTimerInterval = null;
 let restartRecognitionTimer = null;
+let lastRecordedBlob = null;
+let lastRecordedMimeType = 'audio/webm';
+let lastRecordedTargetIdx = 0;
 
 const recordingTimerEl = document.getElementById('recording-timer');
 const audioPreviewContainer = document.getElementById('audio-preview-container');
 const audioPreview = document.getElementById('audio-preview');
 const mobileMicInput = document.getElementById('mobile-mic-input');
 
+async function requestTranscription(audioBlob, mimeType, targetIdx) {
+  if (!audioBlob || audioBlob.size < 80) {
+    speechStatus.textContent = 'Gravação muito curta. Clique no microfone para gravar novamente.';
+    return;
+  }
+
+  lastRecordedBlob = audioBlob;
+  lastRecordedMimeType = mimeType || 'audio/webm';
+  lastRecordedTargetIdx = targetIdx;
+
+  setTranscribingState(true);
+  speechStatus.textContent = '⏳ Áudio capturado! A Inteligência Artificial está transcrevendo sua resposta... Por favor, aguarde.';
+  speechStatus.classList.add('active');
+
+  // Preview player
+  if (audioPreview && audioPreviewContainer) {
+    audioPreview.src = URL.createObjectURL(audioBlob);
+    audioPreviewContainer.style.display = 'block';
+  }
+
+  try {
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onloadend = async () => {
+      const base64Audio = reader.result;
+      try {
+        const res = await fetch('/api/exam/transcribe-audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audioData: base64Audio,
+            mimeType: mimeType
+          })
+        });
+
+        const data = await res.json();
+        if (data.transcript && data.transcript.trim()) {
+          const transcribed = data.transcript.trim();
+          if (questions[targetIdx]) {
+            const existing = (questions[targetIdx].student_answer || '').trim();
+            let newText = '';
+            if (!existing) {
+              newText = transcribed;
+            } else if (existing.toLowerCase().includes(transcribed.toLowerCase())) {
+              newText = existing;
+            } else if (transcribed.toLowerCase().includes(existing.toLowerCase())) {
+              newText = transcribed;
+            } else {
+              newText = `${existing} ${transcribed}`;
+            }
+
+            questions[targetIdx].student_answer = newText;
+            if (currentQuestionIndex === targetIdx) {
+              studentAnswerInput.value = newText;
+              studentAnswerInput.dispatchEvent(new Event('input'));
+            }
+            updateStepsUI();
+            scheduleAutoSave();
+          }
+          speechStatus.textContent = '✅ Áudio transcrito com sucesso pela IA! Você pode editar o texto se quiser.';
+          showToast('✅ Áudio transcrito com sucesso!');
+        } else {
+          speechStatus.innerHTML = `⚠️ O áudio foi gravado com sucesso, mas a IA não transcreveu a fala. <button id="btn-retry-transcribe-inline" class="btn btn-outline btn-sm" type="button" style="margin-left: 0.4rem; padding: 0.2rem 0.6rem; font-size: 0.8rem; font-weight: 700; color: #0284c7; border-color: #38bdf8; background: #f0f9ff; cursor: pointer;">🔄 Transcrever Novamente</button>`;
+          const btnRetry = document.getElementById('btn-retry-transcribe-inline');
+          if (btnRetry) {
+            btnRetry.onclick = () => requestTranscription(lastRecordedBlob, lastRecordedMimeType, lastRecordedTargetIdx);
+          }
+        }
+      } catch (apiErr) {
+        console.warn('Backend transcription error:', apiErr);
+        speechStatus.innerHTML = `⚠️ Falha momentânea ao transcrever com IA. Seu áudio está salvo! <button id="btn-retry-transcribe-inline" class="btn btn-outline btn-sm" type="button" style="margin-left: 0.4rem; padding: 0.2rem 0.6rem; font-size: 0.8rem; font-weight: 700; color: #0284c7; border-color: #38bdf8; background: #f0f9ff; cursor: pointer;">🔄 Tentar Novamente</button>`;
+        const btnRetry = document.getElementById('btn-retry-transcribe-inline');
+        if (btnRetry) {
+          btnRetry.onclick = () => requestTranscription(lastRecordedBlob, lastRecordedMimeType, lastRecordedTargetIdx);
+        }
+      } finally {
+        setTranscribingState(false);
+        speechStatus.classList.remove('active');
+      }
+    };
+  } catch (e) {
+    console.warn('FileReader error:', e);
+    setTranscribingState(false);
+    speechStatus.classList.remove('active');
+  }
+}
+
 function setupMobileAudioFallback() {
   if (!mobileMicInput) return;
   mobileMicInput.addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-
-    const targetIdx = currentQuestionIndex;
-    setTranscribingState(true);
-    speechStatus.textContent = '⏳ Áudio capturado! Transcrevendo com Inteligência Artificial... Por favor, aguarde.';
-    speechStatus.classList.add('active');
-
-    // Preview
-    if (audioPreview && audioPreviewContainer) {
-      audioPreview.src = URL.createObjectURL(file);
-      audioPreviewContainer.style.display = 'block';
-    }
-
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = async () => {
-        const base64Audio = reader.result;
-        try {
-          const res = await fetch('/api/exam/transcribe-audio', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              audioData: base64Audio,
-              mimeType: file.type || 'audio/mp4'
-            })
-          });
-          const data = await res.json();
-          if (data.transcript && data.transcript.trim()) {
-            const transcribed = data.transcript.trim();
-            if (questions[targetIdx]) {
-              const existing = (questions[targetIdx].student_answer || '').trim();
-              const fullText = existing ? `${existing} ${transcribed}` : transcribed;
-              questions[targetIdx].student_answer = fullText;
-              if (currentQuestionIndex === targetIdx) {
-                studentAnswerInput.value = fullText;
-                studentAnswerInput.dispatchEvent(new Event('input'));
-              }
-              updateStepsUI();
-              scheduleAutoSave();
-            }
-            speechStatus.textContent = '✅ Áudio transcrito com sucesso! Você pode editar o texto se quiser.';
-          } else {
-            speechStatus.textContent = 'Áudio gravado com sucesso! Digite ou ajuste sua resposta abaixo.';
-          }
-        } catch (err) {
-          console.warn('Transcription error:', err);
-          speechStatus.textContent = 'Áudio gravado. Você pode digitar sua resposta abaixo.';
-        } finally {
-          setTranscribingState(false);
-          speechStatus.classList.remove('active');
-        }
-      };
-    } catch (err) {
-      console.warn('FileReader error:', err);
-      setTranscribingState(false);
-      speechStatus.classList.remove('active');
-    }
+    requestTranscription(file, file.type || 'audio/mp4', currentQuestionIndex);
   });
 }
 
@@ -1013,70 +1058,17 @@ async function stopRecording() {
   speechStatus.classList.remove('active');
 
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    try {
+      if (typeof mediaRecorder.requestData === 'function') {
+        mediaRecorder.requestData();
+      }
+    } catch (e) {}
+
     mediaRecorder.onstop = async () => {
       const mimeType = mediaRecorder.mimeType || 'audio/webm';
       const audioBlob = new Blob(recordedChunks, { type: mimeType });
 
-      // Enable preview player
-      if (audioPreview && audioPreviewContainer && audioBlob.size > 0) {
-        audioPreview.src = URL.createObjectURL(audioBlob);
-        audioPreviewContainer.style.display = 'block';
-      }
-
-      // Send recorded audio to backend AI for transcription
-      if (audioBlob.size > 100) {
-        const targetIdx = currentQuestionIndex;
-        setTranscribingState(true);
-        speechStatus.textContent = '⏳ Áudio capturado! A Inteligência Artificial está transcrevendo sua resposta... Por favor, aguarde.';
-        speechStatus.classList.add('active');
-        try {
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = async () => {
-            const base64Audio = reader.result;
-            try {
-              const res = await fetch('/api/exam/transcribe-audio', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  audioData: base64Audio,
-                  mimeType: mimeType
-                })
-              });
-              const data = await res.json();
-              if (data.transcript && data.transcript.trim()) {
-                const transcribed = data.transcript.trim();
-                if (questions[targetIdx]) {
-                  const existing = (questions[targetIdx].student_answer || '').trim();
-                  const newText = existing ? `${existing} ${transcribed}` : transcribed;
-                  questions[targetIdx].student_answer = newText;
-                  if (currentQuestionIndex === targetIdx) {
-                    studentAnswerInput.value = newText;
-                    studentAnswerInput.dispatchEvent(new Event('input'));
-                  }
-                  updateStepsUI();
-                  scheduleAutoSave();
-                }
-                speechStatus.textContent = '✅ Áudio transcrito com sucesso pela IA! Você pode editar o texto se quiser.';
-              } else {
-                speechStatus.textContent = 'Áudio gravado. Você pode falar novamente ou digitar no campo abaixo.';
-              }
-            } catch (apiErr) {
-              console.warn('Backend transcription error:', apiErr);
-              speechStatus.textContent = 'Áudio salvo. Você pode digitar ou complementar sua resposta abaixo.';
-            } finally {
-              setTranscribingState(false);
-              speechStatus.classList.remove('active');
-            }
-          };
-        } catch (e) {
-          console.warn('FileReader error:', e);
-          setTranscribingState(false);
-          speechStatus.classList.remove('active');
-        }
-      } else {
-        speechStatus.textContent = 'Gravação muito curta. Clique novamente para gravar.';
-      }
+      await requestTranscription(audioBlob, mimeType, currentQuestionIndex);
 
       // Cleanup stream
       if (mediaStream) {
