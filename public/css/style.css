@@ -505,17 +505,19 @@ body {
 
 .question-review-card {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 1.5rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
   background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .review-item-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.75rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .review-score-badge {
@@ -528,25 +530,136 @@ body {
 }
 
 .review-block {
-  margin-top: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  font-size: 0.92rem;
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
 }
 
+.review-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+/* Student Answer Box - Highlighted & Spacious */
 .review-student {
-  background: #f8fafc;
-  border-left: 3px solid #94a3b8;
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-left: 6px solid #0284c7;
+  border-radius: 10px;
+  padding: 1.15rem 1.25rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.08);
+}
+
+.review-student-text {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.1rem 1.25rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #0f172a;
+  min-height: 90px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .review-expected {
   background: #f0fdf4;
-  border-left: 3px solid #22c55e;
+  border: 1px solid #bbf7d0;
+  border-left: 5px solid #16a34a;
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+}
+
+.review-expected-text {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #166534;
+  white-space: pre-wrap;
 }
 
 .review-feedback {
   background: #fffbeb;
-  border-left: 3px solid #f59e0b;
+  border: 1px solid #fde68a;
+  border-left: 5px solid #d97706;
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+}
+
+.review-feedback-text {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #78350f;
+  white-space: pre-wrap;
+}
+
+/* Teacher Grading Section */
+.review-teacher-box {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.review-teacher-header {
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.review-teacher-fields {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.review-field-score {
+  width: 150px;
+}
+
+.review-field-score label,
+.review-field-feedback label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.review-field-score input {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--primary-dark);
+  text-align: center;
+}
+
+.review-field-feedback {
+  flex: 1;
+  min-width: 260px;
+}
+
+.review-field-feedback textarea {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  min-height: 80px;
+}
+
+.review-field-action {
+  padding-top: 1.5rem;
 }
 
 /* Admin Dashboard */
@@ -861,6 +974,148 @@ body {
 
   .modal-footer .btn {
     width: 100% !important;
+  }
+
+  /* Mobile Review Modal Optimization - Expands boxes and eliminates cramped spacing */
+  #modal-review.modal-overlay {
+    padding: 0 !important;
+  }
+
+  #modal-review .modal-content {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  #modal-review .modal-header {
+    padding: 0.85rem 1rem !important;
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    background: #ffffff;
+  }
+
+  #modal-review .review-sticky-bar {
+    padding: 0.65rem 0.85rem !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  #modal-review .review-sticky-bar > div:first-child {
+    flex-wrap: wrap !important;
+    gap: 0.4rem !important;
+  }
+
+  #modal-review .modal-body {
+    padding: 0.65rem 0.5rem !important;
+    flex: 1 !important;
+  }
+
+  .question-review-card {
+    padding: 1rem 0.75rem !important;
+    margin-bottom: 1.25rem !important;
+    border-radius: 10px !important;
+  }
+
+  .review-item-header {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .review-ai-score-badge-wrap {
+    text-align: left !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    background: #f1f5f9;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    width: 100%;
+  }
+
+  /* STUDENT ANSWER BOX OCCUPIES GENEROUS MOBILE SPACE */
+  .review-student {
+    padding: 1rem 0.85rem !important;
+    margin-top: 0.85rem !important;
+    margin-bottom: 1rem !important;
+    width: 100% !important;
+    border-radius: 10px !important;
+  }
+
+  .review-student-text {
+    padding: 1rem 0.85rem !important;
+    font-size: 1.05rem !important;
+    line-height: 1.65 !important;
+    min-height: 120px !important; /* Generous, expansive height on mobile */
+    width: 100% !important;
+    border-radius: 8px !important;
+  }
+
+  .review-expected,
+  .review-feedback {
+    padding: 0.85rem 0.85rem !important;
+    width: 100% !important;
+  }
+
+  .review-expected-text,
+  .review-feedback-text {
+    font-size: 0.95rem !important;
+    line-height: 1.55 !important;
+  }
+
+  /* Teacher editing controls stack cleanly and comfortably on mobile */
+  .review-teacher-box {
+    padding: 1rem 0.85rem !important;
+  }
+
+  .review-teacher-fields {
+    flex-direction: column !important;
+    gap: 0.85rem !important;
+  }
+
+  .review-field-score {
+    width: 100% !important;
+  }
+
+  .review-field-score input {
+    width: 100% !important;
+    height: 48px !important;
+    font-size: 1.3rem !important;
+    text-align: center !important;
+  }
+
+  .review-field-feedback {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .review-field-feedback textarea {
+    width: 100% !important;
+    min-height: 110px !important;
+    font-size: 1rem !important; /* 16px to prevent iOS auto-zoom */
+  }
+
+  .review-field-action {
+    width: 100% !important;
+    padding-top: 0 !important;
+  }
+
+  .review-field-action .btn-save-answer {
+    width: 100% !important;
+    padding: 0.75rem !important;
+    font-size: 1rem !important;
+    justify-content: center !important;
+  }
+
+  .btn-copy-ai {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 0.45rem 0.75rem !important;
   }
 }
 

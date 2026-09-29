@@ -923,47 +923,51 @@ async function openReviewModal(examId) {
       const feedback = a.teacher_feedback || a.ai_feedback || '';
 
       return `
-        <div class="question-review-card" style="margin-bottom: 1.5rem; border: 1px solid var(--border);">
+        <div class="question-review-card">
           <div class="review-item-header">
             <div>
               <span class="badge badge-primary">Questão ${idx + 1} de 5</span>
               <h4 style="margin-top: 0.35rem; font-size: 1.05rem;">${escapeHtml(a.question)}</h4>
             </div>
-            <div style="text-align: right;">
+            <div class="review-ai-score-badge-wrap">
               <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Nota Sugerida IA:</span>
-              <strong style="color: var(--primary); font-size: 1.1rem;">${a.ai_score !== null ? Number(a.ai_score).toFixed(1) : '-'} / 5.0</strong>
+              <strong style="color: var(--primary); font-size: 1.15rem;">${a.ai_score !== null ? Number(a.ai_score).toFixed(1) : '-'} / 5.0</strong>
             </div>
           </div>
 
-          <!-- Student Answer -->
+          <!-- Student Answer (Prominent, High-Legibility, Expanded) -->
           <div class="review-block review-student">
-            <strong>🗣️ Resposta Transcrita do Aluno (Áudio):</strong>
-            <p style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(a.student_answer || '[Nenhuma resposta gravada]')}</p>
+            <div class="review-block-header">
+              <strong style="color: #0369a1; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+                🗣️ Resposta Transcrita do Aluno (Áudio):
+              </strong>
+              <span class="badge badge-primary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Áudio</span>
+            </div>
+            <div class="review-student-text">${escapeHtml(a.student_answer || '[Nenhuma resposta gravada]')}</div>
           </div>
 
           <!-- Expected Answer -->
           <div class="review-block review-expected">
-            <strong>📚 Resposta Esperada (Gabarito da Professora):</strong>
-            <p style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(a.expected_answer)}</p>
+            <strong style="color: #15803d; font-size: 0.92rem;">📚 Resposta Esperada (Gabarito da Professora):</strong>
+            <div class="review-expected-text">${escapeHtml(a.expected_answer)}</div>
           </div>
 
           <!-- AI Feedback -->
           ${a.ai_feedback ? `
             <div class="review-block review-feedback">
-              <strong>🤖 Correção e Justificativa Gerada pela IA:</strong>
-              <p id="ai-feedback-text-${a.answer_id}" style="margin-top: 0.35rem; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(a.ai_feedback)}</p>
+              <strong style="color: #b45309; font-size: 0.92rem;">🤖 Correção e Justificativa Gerada pela IA:</strong>
+              <div id="ai-feedback-text-${a.answer_id}" class="review-feedback-text">${escapeHtml(a.ai_feedback)}</div>
             </div>
           ` : ''}
 
           <!-- Teacher Score & Feedback Customization -->
-          <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 1.25rem; margin-top: 1rem;">
-            <div style="font-weight: 700; color: var(--primary-dark); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+          <div class="review-teacher-box">
+            <div class="review-teacher-header">
               <span>✏️ Nota Oficial e Correção da Professora Patricia:</span>
               ${a.ai_feedback ? `
                 <button 
                   type="button" 
-                  class="btn btn-outline btn-sm" 
-                  style="font-size: 0.75rem; padding: 0.2rem 0.5rem;"
+                  class="btn btn-outline btn-sm btn-copy-ai" 
                   onclick="copyAiCorrectionToTeacher(${a.answer_id})"
                   title="Copiar o texto da IA para este campo para você editar"
                 >
@@ -972,9 +976,9 @@ async function openReviewModal(examId) {
               ` : ''}
             </div>
             
-            <div style="display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap;">
-              <div style="width: 150px;">
-                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 0.25rem;">Nota Oficial (0 a 5.0):</label>
+            <div class="review-teacher-fields">
+              <div class="review-field-score">
+                <label>Nota Oficial (0 a 5.0):</label>
                 <input 
                   type="number" 
                   step="0.1" 
@@ -984,26 +988,23 @@ async function openReviewModal(examId) {
                   class="form-control" 
                   value="${currentScore}"
                   oninput="updateLiveModalAverage()"
-                  style="font-weight: 700; font-size: 1.15rem; color: var(--primary-dark);"
                 >
               </div>
 
-              <div style="flex: 1; min-width: 260px;">
-                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 0.25rem;">Comentário / Correção da Professora:</label>
+              <div class="review-field-feedback">
+                <label>Comentário / Correção da Professora:</label>
                 <textarea 
                   id="feedback-input-${a.answer_id}" 
                   class="form-control" 
                   rows="3" 
                   placeholder="Você pode modificar a correção feita pela IA ou escrever suas considerações para o aluno..."
-                  style="font-size: 0.9rem; line-height: 1.4;"
                 >${escapeHtml(feedback)}</textarea>
               </div>
 
-              <div style="padding-top: 1.5rem;">
+              <div class="review-field-action">
                 <button 
-                  class="btn btn-primary btn-sm" 
+                  class="btn btn-primary btn-sm btn-save-answer" 
                   onclick="saveAnswerGrade(${a.answer_id})"
-                  style="white-space: nowrap;"
                 >
                   💾 Salvar Esta Questão
                 </button>

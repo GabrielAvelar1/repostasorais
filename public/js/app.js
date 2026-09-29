@@ -664,10 +664,14 @@ async function checkGradesRelease(manualClick = false) {
         submittedList.innerHTML = '';
         data.myAnswers.forEach(ans => {
           const itemDiv = document.createElement('div');
-          itemDiv.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.85rem 1rem;';
+          itemDiv.className = 'review-student';
+          itemDiv.style.margin = '0';
           itemDiv.innerHTML = `
-            <strong style="color: #475569; display: block; margin-bottom: 0.35rem; font-size: 0.95rem;">Questão ${ans.order_num}:</strong>
-            <p style="margin: 0; color: #1e293b; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(ans.student_answer || '[Nenhuma resposta inserida]')}</p>
+            <div class="review-block-header">
+              <strong style="color: #0369a1; font-size: 0.95rem;">🗣️ Questão ${ans.order_num}:</strong>
+              <span class="badge badge-primary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Áudio</span>
+            </div>
+            <div class="review-student-text">${escapeHtml(ans.student_answer || '[Nenhuma resposta inserida]')}</div>
           `;
           submittedList.appendChild(itemDiv);
         });
@@ -1173,18 +1177,21 @@ function renderResults(data) {
       </div>
 
       <div class="review-block review-student">
-        <strong style="color: #475569;">Sua Resposta:</strong>
-        <p style="margin-top: 0.25rem; white-space: pre-wrap;">${escapeHtml(q.student_answer || '[Sem resposta]')}</p>
+        <div class="review-block-header">
+          <strong style="color: #0369a1; font-size: 0.95rem;">🗣️ Sua Resposta Transcrita:</strong>
+          <span class="badge badge-primary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Áudio</span>
+        </div>
+        <div class="review-student-text">${escapeHtml(q.student_answer || '[Sem resposta]')}</div>
       </div>
 
       <div class="review-block review-expected">
-        <strong style="color: #166534;">Resposta Esperada (Referência da Professora):</strong>
-        <p style="margin-top: 0.25rem; white-space: pre-wrap;">${escapeHtml(q.expected_answer)}</p>
+        <strong style="color: #15803d; font-size: 0.92rem;">📚 Resposta Esperada (Referência da Professora):</strong>
+        <div class="review-expected-text">${escapeHtml(q.expected_answer)}</div>
       </div>
 
       <div class="review-block review-feedback">
-        <strong style="color: #92400e;">Comentário e Feedback:</strong>
-        <p style="margin-top: 0.25rem; white-space: pre-wrap;">${escapeHtml(q.feedback || 'Sem observações adicionais.')}</p>
+        <strong style="color: #b45309; font-size: 0.92rem;">🤖 Comentário e Feedback:</strong>
+        <div class="review-feedback-text">${escapeHtml(q.feedback || 'Sem observações adicionais.')}</div>
       </div>
     `;
     questionsListEl.appendChild(card);
