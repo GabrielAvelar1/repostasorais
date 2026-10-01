@@ -842,9 +842,54 @@ app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
   }
 });
 
-// Backward-compatible CSV route
+// API to return clean structured JSON for client-side Excel generation (eliminates Netlify binary issues)
+app.get('/api/admin/export-data', requireTeacher, async (req, res) => {
+  try {
+    const type = req.query.type || 'summary';
+    if (type === 'summary') {
+      const list = await dbService.getStudentsList();
+      res.json({ success: true, list });
+    } else {
+      const data = await dbService.getDetailedExamExportData();
+      res.json({ success: true, data });
+    }
+  } catch (err) {
+    console.error('Export data error:', err);
+    res.status(500).json({ error: 'Erro ao carregar dados para exportação.' });
+  }
+});
+
+// Native UTF-8 with BOM CSV route for guaranteed 1-click import into Google Sheets & Excel
 app.get('/api/admin/export-csv', requireTeacher, async (req, res) => {
-  res.redirect('/api/admin/export-excel?type=summary');
+  try {
+    const list = await dbService.getStudentsList();
+    const statusMap = {
+      'draft': 'Em andamento',
+      'submitted': 'Enviada (Aguardando IA/Revisão)',
+      'grading': 'Corrigindo (IA)',
+      'graded': 'Corrigida e Revisada'
+    };
+
+    // UTF-8 BOM so Excel and Google Sheets correctly detect UTF-8 characters
+    let csv = '\uFEFF';
+    csv += 'Matrícula;Nome Completo;Dupla / Grupo;Nota Final;Status da Prova;Data de Envio\r\n';
+
+    list.forEach(r => {
+      const nota = r.total_score !== null && r.total_score !== undefined ? String(r.total_score).replace('.', ',') : '-';
+      const status = statusMap[r.exam_status] || 'Não iniciou';
+      const dataEnvio = r.submitted_at ? new Date(r.submitted_at).toLocaleString('pt-BR') : '-';
+      const cleanName = `"${(r.full_name || '').replace(/"/g, '""')}"`;
+      const cleanGroup = `"${(r.pair_label || '-').replace(/"/g, '""')}"`;
+      csv += `${r.registration};${cleanName};${cleanGroup};${nota};${status};${dataEnvio}\r\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="notas_odontopediatria_google_planilhas.csv"');
+    return res.send(csv);
+  } catch (err) {
+    console.error('Export CSV error:', err);
+    res.status(500).json({ error: 'Erro ao gerar arquivo CSV.' });
+  }
 });
 
 // Start server if not running as serverless function

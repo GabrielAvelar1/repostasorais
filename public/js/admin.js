@@ -421,12 +421,101 @@ async function handleExportExcel(type) {
     const user = JSON.parse(localStorage.getItem('oral_exam_user') || '{}');
     const role = user.role || 'teacher';
     const reg = user.registration || '12345';
+    const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const filename = type === 'detailed'
+      ? `Notas_Odontopediatria_Detalhado_Patricia_${dateStr}.xlsx`
+      : `Notas_Odontopediatria_Resumo_Patricia_${dateStr}.xlsx`;
 
+    // 1. Client-Side Generation with SheetJS (Preferred - 100% immune to Netlify binary compression bugs)
+    if (window.XLSX) {
+      const dataUrl = `/api/admin/export-data?type=${type}&role=${encodeURIComponent(role)}&reg=${encodeURIComponent(reg)}`;
+      const resData = await fetch(dataUrl, { headers: getAdminHeaders() });
+      if (resData.ok) {
+        const payload = await resData.json();
+        const wb = window.XLSX.utils.book_new();
+
+        if (type === 'summary') {
+          const rows = (payload.list || []).map(r => ({
+            'Matrícula': r.registration,
+            'Nome Completo': r.full_name,
+            'Dupla / Grupo': r.pair_label || '-',
+            'Nota Final': (r.total_score !== null && r.total_score !== undefined) ? Number(r.total_score) : '-',
+            'Status da Prova': r.exam_status === 'graded' ? 'Corrigida e Revisada' : (r.exam_status === 'submitted' ? 'Enviada (Aguardando IA/Revisão)' : (r.exam_status === 'draft' ? 'Em andamento' : 'Não iniciou')),
+            'Data de Envio': r.submitted_at ? new Date(r.submitted_at).toLocaleString('pt-BR') : '-'
+          }));
+          const ws = window.XLSX.utils.json_to_sheet(rows);
+          ws['!cols'] = [{ wch: 16 }, { wch: 35 }, { wch: 30 }, { wch: 12 }, { wch: 28 }, { wch: 22 }];
+          window.XLSX.utils.book_append_sheet(wb, ws, 'Notas Resumidas');
+        } else {
+          // Tab 1: Resumo Geral
+          const summaryRows = (payload.data || []).map(item => {
+            const s = item.student;
+            return {
+              'Matrícula': s.registration,
+              'Nome Completo': s.full_name,
+              'Dupla / Grupo': s.pair_label || '-',
+              'Nota Final': (s.total_score !== null && s.total_score !== undefined) ? Number(s.total_score) : '-',
+              'Status da Prova': s.exam_status === 'graded' ? 'Corrigida e Revisada' : (s.exam_status === 'submitted' ? 'Enviada (Aguardando IA/Revisão)' : (s.exam_status === 'draft' ? 'Em andamento' : 'Não iniciou')),
+              'Data de Envio': s.submitted_at ? new Date(s.submitted_at).toLocaleString('pt-BR') : '-'
+            };
+          });
+          const wsSummary = window.XLSX.utils.json_to_sheet(summaryRows);
+          wsSummary['!cols'] = [{ wch: 16 }, { wch: 35 }, { wch: 30 }, { wch: 12 }, { wch: 28 }, { wch: 22 }];
+          window.XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumo Geral');
+
+          // Tab 2: Questões Detalhadas
+          const detailRows = [];
+          (payload.data || []).forEach(item => {
+            const s = item.student;
+            if (!item.answers || item.answers.length === 0) {
+              detailRows.push({
+                'Matrícula': s.registration,
+                'Nome Completo': s.full_name,
+                'Dupla / Grupo': s.pair_label || '-',
+                'Nota Final': (s.total_score !== null && s.total_score !== undefined) ? Number(s.total_score) : '-',
+                'Questão Nº': '-',
+                'Enunciado': 'Ainda não iniciou a prova',
+                'Resposta Transcrita do Aluno': '-',
+                'Resposta Esperada (Gabarito)': '-',
+                'Nota Final da Questão': '-',
+                'Nota Sugerida IA': '-',
+                'Análise e Parecer da IA': '-',
+                'Revisão / Feedback da Professora': '-'
+              });
+            } else {
+              item.answers.forEach(a => {
+                detailRows.push({
+                  'Matrícula': s.registration,
+                  'Nome Completo': s.full_name,
+                  'Dupla / Grupo': s.pair_label || '-',
+                  'Nota Final': (s.total_score !== null && s.total_score !== undefined) ? Number(s.total_score) : '-',
+                  'Questão Nº': a.order_num,
+                  'Enunciado': a.question,
+                  'Resposta Transcrita do Aluno': a.student_answer || '(Sem resposta gravada)',
+                  'Resposta Esperada (Gabarito)': a.expected_answer,
+                  'Nota Final da Questão': (a.final_score !== null && a.final_score !== undefined) ? Number(a.final_score) : (a.ai_score !== null ? Number(a.ai_score) : '-'),
+                  'Nota Sugerida IA': (a.ai_score !== null && a.ai_score !== undefined) ? Number(a.ai_score) : '-',
+                  'Análise e Parecer da IA': a.ai_feedback || '-',
+                  'Revisão / Feedback da Professora': a.teacher_feedback || '(Sem comentários manuais - Homologado conforme IA)'
+                });
+              });
+            }
+          });
+          const wsDetails = window.XLSX.utils.json_to_sheet(detailRows);
+          wsDetails['!cols'] = [{ wch: 16 }, { wch: 30 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 45 }, { wch: 55 }, { wch: 45 }, { wch: 18 }, { wch: 18 }, { wch: 55 }, { wch: 55 }];
+          window.XLSX.utils.book_append_sheet(wb, wsDetails, 'Questões e Correções');
+        }
+
+        window.XLSX.writeFile(wb, filename);
+        showToast('✅ Planilha gerada e baixada com sucesso!');
+        closeExportModal();
+        return;
+      }
+    }
+
+    // 2. Fallback: Server-side stream
     const url = `/api/admin/export-excel?type=${type}&role=${encodeURIComponent(role)}&reg=${encodeURIComponent(reg)}`;
-    const res = await fetch(url, {
-      headers: getAdminHeaders()
-    });
-
+    const res = await fetch(url, { headers: getAdminHeaders() });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Erro ${res.status} ao gerar planilha.`);
@@ -436,10 +525,7 @@ async function handleExportExcel(type) {
     const blobUrl = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-    a.download = type === 'detailed'
-      ? `Notas_Odontopediatria_Detalhado_Patricia_${dateStr}.xlsx`
-      : `Notas_Odontopediatria_Resumo_Patricia_${dateStr}.xlsx`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -453,6 +539,37 @@ async function handleExportExcel(type) {
   }
 }
 window.handleExportExcel = handleExportExcel;
+
+async function handleExportCsv() {
+  try {
+    showToast('⏳ Baixando arquivo CSV para Google Planilhas...');
+    const user = JSON.parse(localStorage.getItem('oral_exam_user') || '{}');
+    const role = user.role || 'teacher';
+    const reg = user.registration || '12345';
+
+    const url = `/api/admin/export-csv?role=${encodeURIComponent(role)}&reg=${encodeURIComponent(reg)}`;
+    const res = await fetch(url, { headers: getAdminHeaders() });
+    if (!res.ok) throw new Error('Erro ao baixar arquivo CSV.');
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    a.download = `Notas_Odontopediatria_GooglePlanilhas_${dateStr}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(blobUrl);
+
+    showToast('✅ Arquivo CSV baixado com sucesso!');
+    closeExportModal();
+  } catch (err) {
+    console.error('Export CSV error:', err);
+    alert(err.message || 'Erro ao baixar arquivo CSV.');
+  }
+}
+window.handleExportCsv = handleExportCsv;
 
 function closeProfileModal() {
   const modal = document.getElementById('modal-profile');
@@ -659,84 +776,372 @@ function updateActiveExamBanner() {
   }
 }
 
-function renderStudentsTable() {
-  const query = (searchStudentInput.value || '').toLowerCase().trim();
-  const filtered = studentsList.filter(s => 
-    s.full_name.toLowerCase().includes(query) || 
-    s.registration.toLowerCase().includes(query)
-  );
+let currentTableViewMode = 'groups'; // 'groups' (default) or 'students'
 
-  if (filtered.length === 0) {
-    studentsTableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum aluno encontrado.</td></tr>`;
-    return;
+function setTableViewMode(mode) {
+  currentTableViewMode = mode;
+  const btnGroups = document.getElementById('btn-view-groups');
+  const btnStudents = document.getElementById('btn-view-students');
+  if (btnGroups && btnStudents) {
+    if (mode === 'groups') {
+      btnGroups.className = 'btn btn-primary btn-sm';
+      btnGroups.style.fontWeight = '700';
+      btnStudents.className = 'btn btn-outline btn-sm';
+      btnStudents.style.fontWeight = '600';
+    } else {
+      btnStudents.className = 'btn btn-primary btn-sm';
+      btnStudents.style.fontWeight = '700';
+      btnGroups.className = 'btn btn-outline btn-sm';
+      btnGroups.style.fontWeight = '600';
+    }
+  }
+  renderStudentsTable();
+}
+window.setTableViewMode = setTableViewMode;
+
+function buildGroupsFromStudents(list) {
+  const groups = [];
+  const processedUserIds = new Set();
+
+  list.forEach(student => {
+    if (processedUserIds.has(student.user_id)) return;
+
+    let members = [];
+    if (student.pair_label) {
+      members = list.filter(s => s.pair_label === student.pair_label);
+    } else if (student.exam_id) {
+      members = list.filter(s => s.exam_id === student.exam_id);
+    } else {
+      members = [student];
+    }
+
+    members.forEach(m => processedUserIds.add(m.user_id));
+
+    const examId = student.exam_id || (members.find(m => m.exam_id)?.exam_id) || null;
+    const examStatus = student.exam_status || (members.find(m => m.exam_status)?.exam_status) || null;
+    const totalScore = (student.total_score !== null && student.total_score !== undefined)
+      ? student.total_score
+      : (members.find(m => m.total_score !== null && m.total_score !== undefined)?.total_score) || null;
+    const submittedAt = student.submitted_at || (members.find(m => m.submitted_at)?.submitted_at) || null;
+
+    const isGroup = members.length > 1 || !!student.pair_label;
+    const groupTitle = student.pair_label
+      ? student.pair_label
+      : (members.length > 1 ? members.map(m => m.full_name).join(' & ') : student.full_name);
+
+    groups.push({
+      groupId: examId ? `exam_${examId}` : `single_${student.user_id}`,
+      examId,
+      examStatus,
+      totalScore,
+      submittedAt,
+      isGroup,
+      groupTitle,
+      members
+    });
+  });
+
+  return groups;
+}
+
+function openGroupMembersModal(groupId) {
+  const modal = document.getElementById('modal-group-members');
+  const titleEl = document.getElementById('modal-group-title');
+  const metaEl = document.getElementById('modal-group-meta');
+  const listEl = document.getElementById('modal-group-members-list');
+  if (!modal || !listEl) return;
+
+  const allGroups = buildGroupsFromStudents(studentsList);
+  const group = allGroups.find(g => g.groupId === groupId);
+  if (!group) return;
+
+  if (titleEl) {
+    titleEl.textContent = group.isGroup ? `👥 Integrantes: ${group.groupTitle}` : `👤 Aluno: ${group.groupTitle}`;
+  }
+  if (metaEl) {
+    const statusText = group.examStatus ? group.examStatus.toUpperCase() : 'NÃO INICIOU';
+    const scoreText = group.totalScore !== null && group.totalScore !== undefined ? `${Number(group.totalScore).toFixed(1)} / 5.0` : 'Pendente';
+    metaEl.textContent = `${group.members.length} aluno(s) vinculados | Status da Prova: ${statusText} | Nota da Prova: ${scoreText}`;
   }
 
-  studentsTableBody.innerHTML = filtered.map(s => {
-    let statusBadge = '';
-    if (!s.exam_id) {
-      statusBadge = '<span class="badge badge-gray">Não iniciou</span>';
-    } else if (s.exam_status === 'draft') {
-      statusBadge = '<span class="badge badge-warning">Em andamento</span>';
-    } else if (s.exam_status === 'submitted') {
-      statusBadge = '<span class="badge badge-primary">Enviada</span>';
-    } else if (s.exam_status === 'grading') {
-      statusBadge = '<span class="badge badge-warning">Corrigindo (IA)...</span>';
-    } else if (s.exam_status === 'graded') {
-      statusBadge = '<span class="badge badge-success">Corrigida</span>';
-    }
-
-    const pairDisplay = s.pair_label
-      ? `<span class="badge badge-primary" style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">👥 ${escapeHtml(s.pair_label)}</span>`
-      : '<span style="color: var(--text-muted); font-size: 0.85rem;">-</span>';
-
-    const scoreDisplay = (s.total_score !== null && s.total_score !== undefined) 
-      ? `<strong style="font-size: 1.1rem; color: var(--primary-dark);">${Number(s.total_score).toFixed(1)} / 5.0</strong>` 
-      : '-';
-
-    const dateDisplay = s.submitted_at ? new Date(s.submitted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
-
-    const escapedName = escapeHtml(s.full_name).replace(/'/g, "\\'");
-    const escapedReg = escapeHtml(s.registration).replace(/'/g, "\\'");
-
-    // TCLE Badge
-    let tcleBadge = '';
-    if (s.tcle_accepted) {
-      const timeStr = s.tcle_accepted_at ? new Date(s.tcle_accepted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
-      tcleBadge = `<button class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; background: #ecfdf5; font-size: 0.8rem; padding: 0.25rem 0.55rem; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Visualizar comprovante digital do TCLE">✅ Aceito ${timeStr ? `(${timeStr})` : ''}</button>`;
-    } else {
-      tcleBadge = `<button class="btn btn-outline btn-sm" style="color: #d97706; border-color: #fde68a; background: #fffbeb; font-size: 0.8rem; padding: 0.25rem 0.55rem; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Aluno ainda não aceitou o TCLE">⏳ Pendente</button>`;
-    }
-
-    const isDraft = s.exam_status === 'draft';
-    const actionBtns = `
-      <div class="action-btn-group">
-        ${s.exam_id ? `
-          <button class="btn btn-primary btn-sm btn-action-review" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">
-            👁️ Ver Respostas & IA
-          </button>
-          <button class="btn btn-outline btn-sm btn-action-compact" style="color: #0284c7; border-color: #38bdf8; background: #f0f9ff; font-weight: 600;" onclick="openLiveQuestionsModal(${s.exam_id})" title="${isDraft ? 'Acompanhar perguntas sorteadas e transcrição ao vivo' : 'Ver perguntas sorteadas e gabarito da prova'}">
-            📖 ${isDraft ? 'Acompanhar' : 'Perguntas'}
-          </button>
-        ` : '<span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.25rem;">(Sem prova)</span>'}
-        <button class="btn btn-outline btn-sm btn-action-compact" style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Ver comprovante oficial do TCLE">📜 TCLE</button>
-        ${s.exam_id ? `<button class="btn btn-outline btn-sm btn-action-compact" style="color: #b45309; border-color: #fde68a;" onclick="handleResetExam(${s.user_id}, '${escapedName}')" title="Zerar a prova deste aluno para ele refazer">🔄 Resetar</button>` : ''}
-        <button class="btn btn-outline btn-sm btn-action-compact" style="color: #b91c1c; border-color: #fecaca;" onclick="handleDeleteStudent(${s.user_id}, '${escapedName}')" title="Remover aluno da turma">🗑️ Excluir</button>
-      </div>
-    `;
+  listEl.innerHTML = group.members.map(m => {
+    const escapedName = escapeHtml(m.full_name).replace(/'/g, "\\'");
+    const escapedReg = escapeHtml(m.registration).replace(/'/g, "\\'");
+    const timeStr = m.tcle_accepted_at ? new Date(m.tcle_accepted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
 
     return `
-      <tr>
-        <td data-label="Matrícula" style="font-weight: 600;">${escapeHtml(s.registration)}</td>
-        <td data-label="Nome Completo"><strong>${escapeHtml(s.full_name)}</strong></td>
-        <td data-label="Dupla">${pairDisplay}</td>
-        <td data-label="Termo (TCLE)">${tcleBadge}</td>
-        <td data-label="Status da Prova">${statusBadge}</td>
-        <td data-label="Nota Final">${scoreDisplay}</td>
-        <td data-label="Data de Envio">${dateDisplay}</td>
-        <td data-label="Ações da Professora" class="actions-cell">${actionBtns}</td>
-      </tr>
+      <div class="group-member-card" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.9rem 1.15rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px;">
+          <div style="display: flex; align-items: center; gap: 0.45rem;">
+            <span style="font-size: 1.15rem;">👤</span>
+            <strong style="font-size: 1rem; color: var(--text-main);">${escapeHtml(m.full_name)}</strong>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Matrícula: <strong style="color: var(--primary-dark); font-family: monospace; font-size: 0.95rem;">${escapeHtml(m.registration)}</strong>
+          </div>
+          <div style="margin-top: 0.35rem;">
+            ${m.tcle_accepted ? `
+              <span class="badge" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; font-size: 0.75rem; padding: 0.2rem 0.5rem; font-weight: 600;">
+                ✅ TCLE Aceito ${timeStr ? `às ${timeStr}` : ''}
+              </span>
+            ` : `
+              <span class="badge" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a; font-size: 0.75rem; padding: 0.2rem 0.5rem; font-weight: 600;">
+                ⏳ TCLE Pendente
+              </span>
+            `}
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+          <button 
+            type="button" 
+            class="btn btn-outline btn-sm" 
+            style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff; font-size: 0.82rem; font-weight: 600; padding: 0.3rem 0.65rem;" 
+            onclick="openTcleProofModal(${m.user_id}, '${escapedName}', '${escapedReg}')"
+            title="Visualizar e imprimir o comprovante oficial do TCLE deste aluno"
+          >
+            📜 Ver Comprovante TCLE
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-outline btn-sm" 
+            style="color: #b91c1c; border-color: #fecaca; font-size: 0.82rem; padding: 0.3rem 0.65rem;" 
+            onclick="handleDeleteStudent(${m.user_id}, '${escapedName}')"
+            title="Excluir este aluno da turma"
+          >
+            🗑️ Excluir
+          </button>
+        </div>
+      </div>
     `;
   }).join('');
+
+  modal.style.display = 'flex';
+}
+window.openGroupMembersModal = openGroupMembersModal;
+
+function closeGroupMembersModal() {
+  const modal = document.getElementById('modal-group-members');
+  if (modal) modal.style.display = 'none';
+}
+window.closeGroupMembersModal = closeGroupMembersModal;
+
+async function handleResetGroupExam(groupId, groupTitle) {
+  const allGroups = buildGroupsFromStudents(studentsList);
+  const group = allGroups.find(g => g.groupId === groupId);
+  if (!group || !group.members || group.members.length === 0) return;
+
+  const targetUserId = group.members[0].user_id;
+  await handleResetExam(targetUserId, groupTitle);
+}
+window.handleResetGroupExam = handleResetGroupExam;
+
+function renderStudentsTable() {
+  const query = (searchStudentInput.value || '').toLowerCase().trim();
+  const thead = document.querySelector('.data-table thead');
+
+  if (currentTableViewMode === 'groups') {
+    // -----------------------------------------------------------
+    // MODE 1: AGROUPADO POR GRUPOS / PROVAS (PADRÃO PARA PROFESSORA)
+    // -----------------------------------------------------------
+    if (thead) {
+      thead.innerHTML = `
+        <tr>
+          <th style="min-width: 220px;">Grupo / Avaliação</th>
+          <th>Integrantes</th>
+          <th>Termo (TCLE)</th>
+          <th>Status da Prova</th>
+          <th>Nota Final (0 a 5)</th>
+          <th>Data de Envio</th>
+          <th style="text-align: right;">Ações da Prova</th>
+        </tr>
+      `;
+    }
+
+    const allGroups = buildGroupsFromStudents(studentsList);
+    const filteredGroups = allGroups.filter(g => {
+      if (g.groupTitle.toLowerCase().includes(query)) return true;
+      return g.members.some(m => 
+        m.full_name.toLowerCase().includes(query) || 
+        m.registration.toLowerCase().includes(query)
+      );
+    });
+
+    if (filteredGroups.length === 0) {
+      studentsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma prova ou grupo encontrado.</td></tr>`;
+      return;
+    }
+
+    studentsTableBody.innerHTML = filteredGroups.map(g => {
+      let statusBadge = '';
+      if (!g.examId) {
+        statusBadge = '<span class="badge badge-gray">Não iniciou</span>';
+      } else if (g.examStatus === 'draft') {
+        statusBadge = '<span class="badge badge-warning">Em andamento</span>';
+      } else if (g.examStatus === 'submitted') {
+        statusBadge = '<span class="badge badge-primary">Enviada</span>';
+      } else if (g.examStatus === 'grading') {
+        statusBadge = '<span class="badge badge-warning">Corrigindo (IA)...</span>';
+      } else if (g.examStatus === 'graded') {
+        statusBadge = '<span class="badge badge-success">Corrigida</span>';
+      }
+
+      const scoreDisplay = (g.totalScore !== null && g.totalScore !== undefined)
+        ? `<strong style="font-size: 1.15rem; color: var(--primary-dark);">${Number(g.totalScore).toFixed(1)} / 5.0</strong>`
+        : '-';
+
+      const dateDisplay = g.submittedAt
+        ? new Date(g.submittedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        : '-';
+
+      const acceptedCount = g.members.filter(m => m.tcle_accepted).length;
+      const allAccepted = acceptedCount === g.members.length;
+      const tcleDisplay = allAccepted
+        ? `<button class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; background: #ecfdf5; font-size: 0.78rem; padding: 0.22rem 0.55rem; font-weight: 600;" onclick="openGroupMembersModal('${g.groupId}')" title="Ver detalhes dos termos dos integrantes">✅ Todos Aceitaram (${acceptedCount}/${g.members.length})</button>`
+        : `<button class="btn btn-outline btn-sm" style="color: #d97706; border-color: #fde68a; background: #fffbeb; font-size: 0.78rem; padding: 0.22rem 0.55rem; font-weight: 600;" onclick="openGroupMembersModal('${g.groupId}')" title="Ver quais alunos estão pendentes">⏳ ${acceptedCount}/${g.members.length} Aceitos</button>`;
+
+      const escapedTitle = escapeHtml(g.groupTitle).replace(/'/g, "\\'");
+      const isDraft = g.examStatus === 'draft';
+
+      const actionBtns = `
+        <div class="action-btn-group">
+          ${g.examId ? `
+            <button class="btn btn-primary btn-sm btn-action-review" onclick="openReviewModal(${g.examId})" title="Abrir e corrigir as 5 respostas da prova deste grupo">
+              👁️ Ver Respostas & IA
+            </button>
+            <button class="btn btn-outline btn-sm btn-action-compact" style="color: #0284c7; border-color: #38bdf8; background: #f0f9ff; font-weight: 600;" onclick="openLiveQuestionsModal(${g.examId})" title="${isDraft ? 'Acompanhar respostas ao vivo' : 'Ver perguntas sorteadas'}">
+              📖 ${isDraft ? 'Acompanhar' : 'Perguntas'}
+            </button>
+          ` : '<span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.25rem;">(Sem prova)</span>'}
+          <button class="btn btn-outline btn-sm btn-action-compact" style="color: #0284c7; border-color: #bae6fd; background: #f0f9ff; font-weight: 600;" onclick="openGroupMembersModal('${g.groupId}')" title="Ver os alunos do grupo separadamente">
+            👥 Membros
+          </button>
+          ${g.examId ? `<button class="btn btn-outline btn-sm btn-action-compact" style="color: #b45309; border-color: #fde68a;" onclick="handleResetGroupExam('${g.groupId}', '${escapedTitle}')" title="Resetar a prova para este grupo refazer">🔄 Resetar</button>` : ''}
+        </div>
+      `;
+
+      return `
+        <tr>
+          <td data-label="Grupo / Avaliação">
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+              <strong style="font-size: 0.95rem; color: ${g.isGroup ? '#0c4a6e' : 'var(--text-main)'};">
+                ${g.isGroup ? '👥 ' : '👤 '}${escapeHtml(g.groupTitle)}
+              </strong>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">
+                ${g.isGroup ? `${g.members.length} Alunos na avaliação conjunta` : `Matrícula: ${escapeHtml(g.members[0].registration)}`}
+              </span>
+            </div>
+          </td>
+          <td data-label="Integrantes">
+            <button type="button" class="btn btn-outline btn-sm" style="color: #0284c7; border-color: #38bdf8; background: #f0f9ff; font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.6rem;" onclick="openGroupMembersModal('${g.groupId}')">
+              👥 Ver ${g.members.length} Membro(s)
+            </button>
+          </td>
+          <td data-label="Termo (TCLE)">${tcleDisplay}</td>
+          <td data-label="Status da Prova">${statusBadge}</td>
+          <td data-label="Nota Final">${scoreDisplay}</td>
+          <td data-label="Data de Envio">${dateDisplay}</td>
+          <td data-label="Ações da Prova" class="actions-cell">${actionBtns}</td>
+        </tr>
+      `;
+    }).join('');
+
+  } else {
+    // -----------------------------------------------------------
+    // MODE 2: LISTA INDIVIDUAL DE ALUNOS (VISÃO COMPLETA)
+    // -----------------------------------------------------------
+    if (thead) {
+      thead.innerHTML = `
+        <tr>
+          <th>Matrícula</th>
+          <th>Nome Completo</th>
+          <th>Dupla</th>
+          <th>Termo (TCLE)</th>
+          <th>Status da Prova</th>
+          <th>Nota Final (0 a 5)</th>
+          <th>Data de Envio</th>
+          <th style="text-align: right;">Ações da Professora</th>
+        </tr>
+      `;
+    }
+
+    const filtered = studentsList.filter(s => 
+      s.full_name.toLowerCase().includes(query) || 
+      s.registration.toLowerCase().includes(query)
+    );
+
+    if (filtered.length === 0) {
+      studentsTableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum aluno encontrado.</td></tr>`;
+      return;
+    }
+
+    studentsTableBody.innerHTML = filtered.map(s => {
+      let statusBadge = '';
+      if (!s.exam_id) {
+        statusBadge = '<span class="badge badge-gray">Não iniciou</span>';
+      } else if (s.exam_status === 'draft') {
+        statusBadge = '<span class="badge badge-warning">Em andamento</span>';
+      } else if (s.exam_status === 'submitted') {
+        statusBadge = '<span class="badge badge-primary">Enviada</span>';
+      } else if (s.exam_status === 'grading') {
+        statusBadge = '<span class="badge badge-warning">Corrigindo (IA)...</span>';
+      } else if (s.exam_status === 'graded') {
+        statusBadge = '<span class="badge badge-success">Corrigida</span>';
+      }
+
+      const pairDisplay = s.pair_label
+        ? `<span class="badge badge-primary" style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">👥 ${escapeHtml(s.pair_label)}</span>`
+        : '<span style="color: var(--text-muted); font-size: 0.85rem;">-</span>';
+
+      const scoreDisplay = (s.total_score !== null && s.total_score !== undefined) 
+        ? `<strong style="font-size: 1.1rem; color: var(--primary-dark);">${Number(s.total_score).toFixed(1)} / 5.0</strong>` 
+        : '-';
+
+      const dateDisplay = s.submitted_at ? new Date(s.submitted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
+
+      const escapedName = escapeHtml(s.full_name).replace(/'/g, "\\'");
+      const escapedReg = escapeHtml(s.registration).replace(/'/g, "\\'");
+
+      // TCLE Badge
+      let tcleBadge = '';
+      if (s.tcle_accepted) {
+        const timeStr = s.tcle_accepted_at ? new Date(s.tcle_accepted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+        tcleBadge = `<button class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; background: #ecfdf5; font-size: 0.8rem; padding: 0.25rem 0.55rem; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Visualizar comprovante digital do TCLE">✅ Aceito ${timeStr ? `(${timeStr})` : ''}</button>`;
+      } else {
+        tcleBadge = `<button class="btn btn-outline btn-sm" style="color: #d97706; border-color: #fde68a; background: #fffbeb; font-size: 0.8rem; padding: 0.25rem 0.55rem; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Aluno ainda não aceitou o TCLE">⏳ Pendente</button>`;
+      }
+
+      const isDraft = s.exam_status === 'draft';
+      const actionBtns = `
+        <div class="action-btn-group">
+          ${s.exam_id ? `
+            <button class="btn btn-primary btn-sm btn-action-review" onclick="openReviewModal(${s.exam_id})" title="Ver respostas transcritas do aluno e correção da IA">
+              👁️ Ver Respostas & IA
+            </button>
+            <button class="btn btn-outline btn-sm btn-action-compact" style="color: #0284c7; border-color: #38bdf8; background: #f0f9ff; font-weight: 600;" onclick="openLiveQuestionsModal(${s.exam_id})" title="${isDraft ? 'Acompanhar perguntas sorteadas e transcrição ao vivo' : 'Ver perguntas sorteadas e gabarito da prova'}">
+              📖 ${isDraft ? 'Acompanhar' : 'Perguntas'}
+            </button>
+          ` : '<span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.25rem;">(Sem prova)</span>'}
+          <button class="btn btn-outline btn-sm btn-action-compact" style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff; font-weight: 600;" onclick="openTcleProofModal(${s.user_id}, '${escapedName}', '${escapedReg}')" title="Ver comprovante oficial do TCLE">📜 TCLE</button>
+          ${s.exam_id ? `<button class="btn btn-outline btn-sm btn-action-compact" style="color: #b45309; border-color: #fde68a;" onclick="handleResetExam(${s.user_id}, '${escapedName}')" title="Zerar a prova deste aluno para ele refazer">🔄 Resetar</button>` : ''}
+          <button class="btn btn-outline btn-sm btn-action-compact" style="color: #b91c1c; border-color: #fecaca;" onclick="handleDeleteStudent(${s.user_id}, '${escapedName}')" title="Remover aluno da turma">🗑️ Excluir</button>
+        </div>
+      `;
+
+      return `
+        <tr>
+          <td data-label="Matrícula" style="font-weight: 600;">${escapeHtml(s.registration)}</td>
+          <td data-label="Nome Completo"><strong>${escapeHtml(s.full_name)}</strong></td>
+          <td data-label="Dupla">${pairDisplay}</td>
+          <td data-label="Termo (TCLE)">${tcleBadge}</td>
+          <td data-label="Status da Prova">${statusBadge}</td>
+          <td data-label="Nota Final">${scoreDisplay}</td>
+          <td data-label="Data de Envio">${dateDisplay}</td>
+          <td data-label="Ações da Professora" class="actions-cell">${actionBtns}</td>
+        </tr>
+      `;
+    }).join('');
+  }
 }
 
 // -------------------------------------------------------------

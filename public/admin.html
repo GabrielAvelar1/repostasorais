@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -142,17 +143,25 @@
     <div class="card" style="padding: 1.5rem;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
         <div>
-          <h2 style="font-size: 1.25rem; font-weight: 700;">Lista de Alunos & Provas Orais</h2>
-          <p style="font-size: 0.85rem; color: var(--text-muted);">
-            Clique em "Ver Respostas & Correção IA" para inspecionar as 5 respostas e mudar a nota se desejar.
+          <h2 style="font-size: 1.25rem; font-weight: 700;">Lista de Provas & Avaliações</h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            Corrija as provas por grupo (duplas, trios ou individuais) de forma rápida e organizada.
           </p>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button id="btn-view-groups" type="button" class="btn btn-primary btn-sm" style="font-weight: 700; font-size: 0.82rem; padding: 0.35rem 0.75rem;" onclick="setTableViewMode('groups')">
+              👥 Agrupado por Grupos / Provas
+            </button>
+            <button id="btn-view-students" type="button" class="btn btn-outline btn-sm" style="font-weight: 600; font-size: 0.82rem; padding: 0.35rem 0.75rem;" onclick="setTableViewMode('students')">
+              👤 Lista Individual de Alunos
+            </button>
+          </div>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <input 
             type="text" 
             id="search-student" 
             class="form-control" 
-            placeholder="Buscar por nome ou matrícula..." 
+            placeholder="Buscar aluno, grupo ou matrícula..." 
             style="width: 260px; padding: 0.5rem 0.75rem; font-size: 0.9rem;"
           >
           <button id="btn-refresh-students" class="btn btn-outline btn-sm" title="Atualizar lista">
@@ -242,9 +251,34 @@
     </div>
   </div>
 
+  <!-- MODAL: DETALHES DOS INTEGRANTES DO GRUPO -->
+  <div id="modal-group-members" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-group-title" class="modal-title">👥 Integrantes do Grupo</h3>
+          <div id="modal-group-meta" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Alunos vinculados a esta avaliação
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeGroupMembersModal()">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 1.25rem 0;">
+        <div id="modal-group-members-list" style="display: flex; flex-direction: column; gap: 0.85rem;">
+          <!-- Dynamically populated member cards -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" type="button" onclick="closeGroupMembersModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: EXPORT OPTIONS (EXCEL / GOOGLE SHEETS) -->
   <div id="modal-export" class="modal-overlay" style="display: none;">
-    <div class="modal-content" style="max-width: 560px;">
+    <div class="modal-content" style="max-width: 580px;">
       <div class="modal-header">
         <h3 class="modal-title">📊 Baixar Planilha de Notas</h3>
         <button class="modal-close" onclick="closeExportModal()">✕</button>
@@ -252,16 +286,32 @@
 
       <div class="modal-body" style="padding: 1.5rem 0;">
         <p style="color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.95rem;">
-          Selecione o tipo de planilha para abrir no <strong>Microsoft Excel</strong> ou importar no <strong>Google Planilhas</strong>:
+          Selecione o formato desejado para abrir no <strong>Google Planilhas</strong> ou <strong>Microsoft Excel</strong>:
         </p>
 
         <div style="display: flex; flex-direction: column; gap: 1rem;">
-          <!-- Option 1: Resumida -->
+          <!-- Option 1: CSV para Google Planilhas (100% à prova de falhas) -->
+          <div style="border: 2px solid #10b981; border-radius: 8px; padding: 1.25rem; background: #ecfdf5; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem;">
+                <h4 style="margin: 0; font-size: 1.05rem; color: #065f46;">📈 Google Planilhas (.csv UTF-8)</h4>
+                <span class="badge" style="background: #10b981; color: #fff; font-size: 0.7rem; padding: 0.15rem 0.45rem;">Recomendado Google</span>
+              </div>
+              <p style="margin: 0; font-size: 0.85rem; color: #047857;">
+                Arquivo formatado em UTF-8 pronto. Abre no <strong>Google Drive / Google Planilhas instantaneamente sem qualquer erro de conversão.</strong>
+              </p>
+            </div>
+            <button type="button" class="btn btn-primary" style="white-space: nowrap; font-weight: 700; background: #059669; border-color: #047857;" onclick="handleExportCsv()">
+              📥 Baixar (.csv)
+            </button>
+          </div>
+
+          <!-- Option 2: Resumida Excel -->
           <div style="border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; background: #fff; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
             <div>
-              <h4 style="margin: 0 0 0.25rem 0; font-size: 1.05rem;">📄 Planilha Resumida</h4>
+              <h4 style="margin: 0 0 0.25rem 0; font-size: 1.05rem;">📄 Planilha Resumida Excel (.xlsx)</h4>
               <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
-                Apenas <strong>Matrícula</strong>, <strong>Nome Completo</strong> e <strong>Nota Final</strong>. Ideal para lançar notas no diário acadêmico.
+                Apenas <strong>Matrícula</strong>, <strong>Nome Completo</strong>, <strong>Dupla</strong> e <strong>Nota Final</strong>. Ideal para lançar notas no diário acadêmico.
               </p>
             </div>
             <button type="button" class="btn btn-outline" style="white-space: nowrap; font-weight: 600;" onclick="handleExportExcel('summary')">
@@ -269,10 +319,10 @@
             </button>
           </div>
 
-          <!-- Option 2: Completa com Questões e IA -->
+          <!-- Option 3: Completa com Questões e IA Excel -->
           <div style="border: 2px solid var(--primary); border-radius: 8px; padding: 1.25rem; background: var(--primary-light); display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
             <div>
-              <h4 style="margin: 0 0 0.25rem 0; font-size: 1.05rem; color: var(--primary-dark);">📑 Planilha Completa Detalhada</h4>
+              <h4 style="margin: 0 0 0.25rem 0; font-size: 1.05rem; color: var(--primary-dark);">📑 Planilha Detalhada Excel (.xlsx)</h4>
               <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
                 Inclui <strong>Matrícula</strong>, <strong>Nome</strong>, <strong>Dupla/Grupo</strong>, <strong>Nota Final</strong>, todas as <strong>Perguntas sorteadas</strong>, <strong>Respostas transcritas</strong>, <strong>Correção da IA</strong> e <strong>Revisão da Professora</strong>.
               </p>
