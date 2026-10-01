@@ -388,6 +388,17 @@ async function submitExam(examId, answersList) {
     .select()
     .single();
   if (error) throw error;
+
+  // Sync all students in group
+  const pairInfo = await getExamPairInfo(examId);
+  if (pairInfo && pairInfo.studentIds && pairInfo.studentIds.length > 0) {
+    const ids = pairInfo.studentIds.map(Number);
+    await supabase
+      .from('student_exams')
+      .update({ status: 'submitted', submitted_at: new Date().toISOString() })
+      .in('user_id', ids);
+  }
+
   return data;
 }
 
@@ -422,6 +433,20 @@ async function updateGradingResults(examId, results) {
     })
     .eq('id', examId);
 
+  // Sync all students in group
+  const pairInfo = await getExamPairInfo(examId);
+  if (pairInfo && pairInfo.studentIds && pairInfo.studentIds.length > 0) {
+    const ids = pairInfo.studentIds.map(Number);
+    await supabase
+      .from('student_exams')
+      .update({
+        status: 'graded',
+        total_score: averageScore,
+        graded_at: new Date().toISOString()
+      })
+      .in('user_id', ids);
+  }
+
   return averageScore;
 }
 
@@ -452,8 +477,18 @@ async function updateTeacherGrade(answerId, teacherScore, teacherFeedback) {
     const avg = Math.round((sum / allAns.length) * 10) / 10;
     await supabase
       .from('student_exams')
-      .update({ total_score: avg, status: 'graded' })
+      .update({ total_score: avg, status: 'graded', graded_at: new Date().toISOString() })
       .eq('id', ans.exam_id);
+
+    // Sync all students in the pair/trio/quartet
+    const pairInfo = await getExamPairInfo(ans.exam_id);
+    if (pairInfo && pairInfo.studentIds && pairInfo.studentIds.length > 0) {
+      const ids = pairInfo.studentIds.map(Number);
+      await supabase
+        .from('student_exams')
+        .update({ total_score: avg, status: 'graded', graded_at: new Date().toISOString() })
+        .in('user_id', ids);
+    }
   }
 }
 
@@ -499,9 +534,13 @@ async function getStudentsList() {
     const pair = pairHistory.slice().reverse().find(p => p.studentIds && (p.studentIds.includes(s.id) || p.studentIds.includes(Number(s.id))));
     const pair_label = pair ? pair.studentNames : null;
 
-    let exam = Array.isArray(s.student_exams) && s.student_exams.length > 0 ? s.student_exams[0] : (s.student_exams || null);
-    if ((!exam || !exam.id) && pair && pair.examId) {
+    // Prioritize shared pair/group exam if student belongs to an active group
+    let exam = null;
+    if (pair && pair.examId) {
       exam = allExamsMap.get(pair.examId) || null;
+    }
+    if (!exam) {
+      exam = Array.isArray(s.student_exams) && s.student_exams.length > 0 ? s.student_exams[0] : (s.student_exams || null);
     }
 
     // Find TCLE info

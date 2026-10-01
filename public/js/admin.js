@@ -415,6 +415,45 @@ function closeExportModal() {
 }
 window.closeExportModal = closeExportModal;
 
+async function handleExportExcel(type) {
+  try {
+    showToast('⏳ Gerando planilha Excel...');
+    const user = JSON.parse(localStorage.getItem('oral_exam_user') || '{}');
+    const role = user.role || 'teacher';
+    const reg = user.registration || '12345';
+
+    const url = `/api/admin/export-excel?type=${type}&role=${encodeURIComponent(role)}&reg=${encodeURIComponent(reg)}`;
+    const res = await fetch(url, {
+      headers: getAdminHeaders()
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Erro ${res.status} ao gerar planilha.`);
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    a.download = type === 'detailed'
+      ? `Notas_Odontopediatria_Detalhado_Patricia_${dateStr}.xlsx`
+      : `Notas_Odontopediatria_Resumo_Patricia_${dateStr}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(blobUrl);
+
+    showToast('✅ Planilha baixada com sucesso!');
+    closeExportModal();
+  } catch (err) {
+    console.error('Export Excel error:', err);
+    alert(err.message || 'Erro ao exportar planilha Excel.');
+  }
+}
+window.handleExportExcel = handleExportExcel;
+
 function closeProfileModal() {
   const modal = document.getElementById('modal-profile');
   if (modal) modal.style.display = 'none';

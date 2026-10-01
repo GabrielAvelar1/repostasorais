@@ -264,9 +264,9 @@
                 Apenas <strong>Matrícula</strong>, <strong>Nome Completo</strong> e <strong>Nota Final</strong>. Ideal para lançar notas no diário acadêmico.
               </p>
             </div>
-            <a href="/api/admin/export-excel?type=summary" class="btn btn-outline" style="white-space: nowrap; font-weight: 600;" onclick="closeExportModal()">
-              Baixar (.xlsx)
-            </a>
+            <button type="button" class="btn btn-outline" style="white-space: nowrap; font-weight: 600;" onclick="handleExportExcel('summary')">
+              📥 Baixar (.xlsx)
+            </button>
           </div>
 
           <!-- Option 2: Completa com Questões e IA -->
@@ -274,12 +274,12 @@
             <div>
               <h4 style="margin: 0 0 0.25rem 0; font-size: 1.05rem; color: var(--primary-dark);">📑 Planilha Completa Detalhada</h4>
               <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
-                Inclui <strong>Matrícula</strong>, <strong>Nome</strong>, <strong>Nota Final</strong>, todas as <strong>Perguntas sorteadas</strong>, <strong>Respostas transcritas</strong> e a <strong>Correção/Feedback da IA</strong> de cada questão.
+                Inclui <strong>Matrícula</strong>, <strong>Nome</strong>, <strong>Dupla/Grupo</strong>, <strong>Nota Final</strong>, todas as <strong>Perguntas sorteadas</strong>, <strong>Respostas transcritas</strong>, <strong>Correção da IA</strong> e <strong>Revisão da Professora</strong>.
               </p>
             </div>
-            <a href="/api/admin/export-excel?type=detailed" class="btn btn-primary" style="white-space: nowrap; font-weight: 600;" onclick="closeExportModal()">
-              Baixar (.xlsx)
-            </a>
+            <button type="button" class="btn btn-primary" style="white-space: nowrap; font-weight: 600;" onclick="handleExportExcel('detailed')">
+              📊 Baixar (.xlsx)
+            </button>
           </div>
         </div>
       </div>

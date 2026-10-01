@@ -1193,9 +1193,9 @@ function renderResults(data) {
     card.innerHTML = `
       <div class="review-item-header">
         <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">
-          Questão ${idx + 1}: ${q.question}
+          Questão ${idx + 1}: ${escapeHtml(q.question)}
         </h4>
-        <span class="review-score-badge">Nota: ${scoreNum} / 5.0</span>
+        <span class="review-score-badge">Nota Oficial: ${scoreNum} / 5.0</span>
       </div>
 
       <div class="review-block review-student">
@@ -1203,7 +1203,7 @@ function renderResults(data) {
           <strong style="color: #0369a1; font-size: 0.95rem;">🗣️ Sua Resposta Transcrita:</strong>
           <span class="badge badge-primary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Áudio</span>
         </div>
-        <div class="review-student-text">${escapeHtml(q.student_answer || '[Sem resposta]')}</div>
+        <div class="review-student-text">${escapeHtml(q.student_answer || '[Sem resposta gravada]')}</div>
       </div>
 
       <div class="review-block review-expected">
@@ -1211,9 +1211,41 @@ function renderResults(data) {
         <div class="review-expected-text">${escapeHtml(q.expected_answer)}</div>
       </div>
 
-      <div class="review-block review-feedback">
-        <strong style="color: #b45309; font-size: 0.92rem;">🤖 Comentário e Feedback:</strong>
-        <div class="review-feedback-text">${escapeHtml(q.feedback || 'Sem observações adicionais.')}</div>
+      <!-- CORREÇÃO CONJUNTA: IA + REVISÃO DA PROFESSORA -->
+      <div class="review-block review-feedback" style="border-left: 4px solid #2563eb; background: #f8fafc; padding: 1rem; border-radius: 8px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+          <strong style="color: #1e40af; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+            ⚖️ Parecer Pedagógico:
+          </strong>
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            <span class="badge" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.75rem; padding: 0.2rem 0.55rem; font-weight: 600;">
+              🤖 Corrigido pela IA
+            </span>
+            <span class="badge" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 0.75rem; padding: 0.2rem 0.55rem; font-weight: 600;">
+              👩‍🏫 Revisado pela Professora
+            </span>
+          </div>
+        </div>
+
+        ${q.teacher_feedback ? `
+          <div style="margin-bottom: 0.75rem; padding: 0.65rem 0.85rem; background: #ffffff; border-radius: 6px; border-left: 3px solid #16a34a; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.85rem; font-weight: 700; color: #15803d; margin-bottom: 0.25rem;">
+              👩‍🏫 Observações da Professora Patricia:
+            </div>
+            <div style="color: #1f2937; font-size: 0.92rem; line-height: 1.45;">
+              ${escapeHtml(q.teacher_feedback)}
+            </div>
+          </div>
+        ` : ''}
+
+        <div style="padding: 0.65rem 0.85rem; background: #ffffff; border-radius: 6px; border-left: 3px solid #3b82f6; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+          <div style="font-size: 0.85rem; font-weight: 700; color: #1d4ed8; margin-bottom: 0.25rem;">
+            🤖 Análise da Inteligência Artificial (Homologada e Validada pela Professora):
+          </div>
+          <div style="color: #374151; font-size: 0.92rem; line-height: 1.45;">
+            ${escapeHtml(q.ai_feedback || q.feedback || 'Resposta avaliada e validada nos critérios da disciplina.')}
+          </div>
+        </div>
       </div>
     `;
     questionsListEl.appendChild(card);

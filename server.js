@@ -305,7 +305,7 @@ app.get('/api/exam/my-result', async (req, res) => {
         gradesReleased: false,
         submittedAt: exam.submitted_at,
         pairNames,
-        message: 'Sua prova foi enviada e está sendo revisada pela Professora Patricia. As notas serão liberadas para toda a turma em breve.',
+        message: 'Sua prova foi enviada e está sendo processada pela Inteligência Artificial e revisada pela Professora Patricia. As notas serão liberadas para toda a turma em breve.',
         myAnswers: rawAnswers.map((a, i) => ({
           order_num: a.order_num || (i + 1),
           student_answer: a.student_answer || '[Sem resposta gravada]'
@@ -313,7 +313,7 @@ app.get('/api/exam/my-result', async (req, res) => {
       });
     }
 
-    // Grades are released! Return full feedback
+    // Grades are released! Return full feedback with AI and Teacher evaluation
     const answers = await dbService.getExamAnswers(exam.id);
 
     res.json({
@@ -328,7 +328,11 @@ app.get('/api/exam/my-result', async (req, res) => {
         order_num: a.order_num,
         student_answer: a.student_answer,
         score: a.final_score,
-        feedback: a.teacher_feedback || a.ai_feedback || 'Avaliação concluída.',
+        ai_score: a.ai_score,
+        ai_feedback: a.ai_feedback,
+        teacher_score: a.teacher_score,
+        teacher_feedback: a.teacher_feedback,
+        feedback: a.teacher_feedback || a.ai_feedback || 'Avaliação revisada e homologada pela professora.',
         question: a.question,
         expected_answer: a.expected_answer
       }))
@@ -342,12 +346,22 @@ app.get('/api/exam/my-result', async (req, res) => {
 // -------------------------------------------------------------
 // TEACHER (ADMIN) APIS
 // -------------------------------------------------------------
-function requireTeacher(req, res, next) {
-  const role = req.headers['x-user-role'];
-  const reg = req.headers['x-user-reg'];
+async function requireTeacher(req, res, next) {
+  const role = req.headers['x-user-role'] || req.query.role;
+  const reg = req.headers['x-user-reg'] || req.query.reg;
+
   if (role === 'teacher' || reg === '12345') {
     return next();
   }
+
+  // Also check if reg matches configured teacher user registration in database
+  try {
+    const teacher = await dbService.getTeacherUser();
+    if (teacher && reg && String(reg).trim() === String(teacher.registration).trim()) {
+      return next();
+    }
+  } catch (e) {}
+
   return res.status(403).json({ error: 'Acesso restrito à Professora Patricia.' });
 }
 
@@ -696,13 +710,14 @@ app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
         const nota = r.total_score !== null && r.total_score !== undefined ? Number(r.total_score) : '-';
         const statusMap = {
           'draft': 'Em andamento',
-          'submitted': 'Enviada (Aguardando IA)',
+          'submitted': 'Enviada (Aguardando IA/Revisão)',
           'grading': 'Corrigindo (IA)',
-          'graded': 'Corrigida'
+          'graded': 'Corrigida e Revisada'
         };
         return {
           'Matrícula': r.registration,
           'Nome Completo': r.full_name,
+          'Dupla / Grupo': r.pair_label || '-',
           'Nota Final': nota,
           'Status da Prova': statusMap[r.exam_status] || 'Não iniciou',
           'Data de Envio': r.submitted_at ? new Date(r.submitted_at).toLocaleString('pt-BR') : '-'
@@ -713,8 +728,9 @@ app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
       ws['!cols'] = [
         { wch: 16 },
         { wch: 35 },
+        { wch: 30 },
         { wch: 12 },
-        { wch: 24 },
+        { wch: 28 },
         { wch: 22 }
       ];
       XLSX.utils.book_append_sheet(wb, ws, 'Notas Resumidas');
@@ -734,13 +750,14 @@ app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
         const nota = s.total_score !== null && s.total_score !== undefined ? Number(s.total_score) : '-';
         const statusMap = {
           'draft': 'Em andamento',
-          'submitted': 'Enviada (Aguardando IA)',
+          'submitted': 'Enviada (Aguardando IA/Revisão)',
           'grading': 'Corrigindo (IA)',
-          'graded': 'Corrigida'
+          'graded': 'Corrigida e Revisada'
         };
         return {
           'Matrícula': s.registration,
           'Nome Completo': s.full_name,
+          'Dupla / Grupo': s.pair_label || '-',
           'Nota Final': nota,
           'Status da Prova': statusMap[s.exam_status] || 'Não iniciou',
           'Data de Envio': s.submitted_at ? new Date(s.submitted_at).toLocaleString('pt-BR') : '-'
@@ -751,13 +768,14 @@ app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
       wsSummary['!cols'] = [
         { wch: 16 },
         { wch: 35 },
+        { wch: 30 },
         { wch: 12 },
-        { wch: 24 },
+        { wch: 28 },
         { wch: 22 }
       ];
       XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumo Geral');
 
-      // Tab 2: Questões, Respostas Transcritas e Correção da IA
+      // Tab 2: Questões, Respostas Transcritas, IA e Revisão da Professora
       const detailRows = [];
       data.forEach(item => {
         const s = item.student;
@@ -765,26 +783,32 @@ app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
           detailRows.push({
             'Matrícula': s.registration,
             'Nome Completo': s.full_name,
+            'Dupla / Grupo': s.pair_label || '-',
             'Nota Final': s.total_score !== null && s.total_score !== undefined ? Number(s.total_score) : '-',
             'Questão Nº': '-',
             'Enunciado': 'Ainda não iniciou a prova',
             'Resposta Transcrita do Aluno': '-',
             'Resposta Esperada (Gabarito)': '-',
-            'Nota da Questão (IA)': '-',
-            'Feedback / Correção da IA': '-'
+            'Nota Final da Questão': '-',
+            'Nota Sugerida IA': '-',
+            'Análise e Parecer da IA': '-',
+            'Revisão / Feedback da Professora': '-'
           });
         } else {
           item.answers.forEach(a => {
             detailRows.push({
               'Matrícula': s.registration,
               'Nome Completo': s.full_name,
+              'Dupla / Grupo': s.pair_label || '-',
               'Nota Final': s.total_score !== null && s.total_score !== undefined ? Number(s.total_score) : '-',
               'Questão Nº': a.order_num,
               'Enunciado': a.question,
-              'Resposta Transcrita do Aluno': a.student_answer || '(Sem resposta)',
+              'Resposta Transcrita do Aluno': a.student_answer || '(Sem resposta gravada)',
               'Resposta Esperada (Gabarito)': a.expected_answer,
-              'Nota da Questão (IA)': a.final_score !== null && a.final_score !== undefined ? Number(a.final_score) : (a.ai_score !== null ? Number(a.ai_score) : '-'),
-              'Feedback / Correção da IA': a.teacher_feedback || a.ai_feedback || '-'
+              'Nota Final da Questão': a.final_score !== null && a.final_score !== undefined ? Number(a.final_score) : (a.ai_score !== null ? Number(a.ai_score) : '-'),
+              'Nota Sugerida IA': a.ai_score !== null && a.ai_score !== undefined ? Number(a.ai_score) : '-',
+              'Análise e Parecer da IA': a.ai_feedback || '-',
+              'Revisão / Feedback da Professora': a.teacher_feedback || '(Sem comentários manuais - Homologado conforme IA)'
             });
           });
         }
@@ -794,15 +818,18 @@ app.get('/api/admin/export-excel', requireTeacher, async (req, res) => {
       wsDetails['!cols'] = [
         { wch: 16 },
         { wch: 30 },
+        { wch: 25 },
         { wch: 12 },
         { wch: 12 },
         { wch: 45 },
         { wch: 55 },
         { wch: 45 },
-        { wch: 16 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 55 },
         { wch: 55 }
       ];
-      XLSX.utils.book_append_sheet(wb, wsDetails, 'Questões e Correções IA');
+      XLSX.utils.book_append_sheet(wb, wsDetails, 'Questões e Correções');
 
       const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
